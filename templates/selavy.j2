@@ -1,0 +1,38 @@
+Selavy.image                                    = {{ image }}
+Selavy.Weights.weightsImage                     = {{ weight }}
+
+Selavy.resultsFile                              = {{ results }}
+Selavy.votFile                                  = {{ votable }}
+Selavy.subimageAnnotationFile                   = {{ annotations }}
+Selavy.nsubx                                    = 5
+Selavy.nsuby                                    = 3
+Selavy.overlapx                                 = 0
+Selavy.overlapy                                 = 0
+Selavy.imagetype                                = fits
+
+Selavy.VariableThreshold                        = false
+Selavy.VariableThreshold.boxSize                = 50
+Selavy.VariableThreshold.imagetype              = fits
+Selavy.VariableThreshold.reuse                  = false
+
+Selavy.threshold                                = 0.001
+Selavy.WeightScaling                            = true
+Selavy.Weights                                  = true
+Selavy.Weights.weightsCutoff                    = 0.09
+Selavy.spectralTermsFromTaylor                  = true
+Selavy.findSpectralTerms                        = [true, false]
+#Selavy.snrCut                                  = 5
+Selavy.flagGrowth                               = false
+Selavy.growthThreshold                          = 3
+
+Selavy.Fitter.doFit                             = true
+Selavy.Fitter.fitTypes                          = [full]
+Selavy.Fitter.maxReducedChisq                   = 10.
+Selavy.Fitter.imagetype                         = fits
+Selavy.Fitter.numGaussFromGuess                 = true
+
+Selavy.threshSpatial                            = 5
+Selavy.minPix                                   = 3
+Selavy.minVoxels                                = 3
+Selavy.minChannels                              = 1
+Selavy.sortingParam                             = -pflux
