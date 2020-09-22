@@ -7,12 +7,13 @@ params.INPUT_CONF = "${params.SCRATCH_ROOT}/data/emu/emucat"
 params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/emu/data/raw"
 params.OUTPUT_LINMOS = "${params.SCRATCH_ROOT}/data/emu/data/linmos"
 params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/emu/data/selavy"
+params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/emu/data/lhr"
 params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/data/emu/log"
 
 
 process get_sched_blocks {
 
-    container = "${params.IMAGES}/general.sif"
+    container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
@@ -45,7 +46,7 @@ process get_sched_blocks {
 
 process casda_download {
 
-    container = "${params.IMAGES}/general.sif"
+    container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
@@ -67,7 +68,7 @@ process casda_download {
 
 process generate_linmos_conf {
 
-    container = "${params.IMAGES}/general.sif"
+    container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -117,14 +118,14 @@ process run_linmos {
         """
         #!/bin/bash
         mpirun singularity exec --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-        ${params.IMAGES}/yandasoft.sif linmos-mpi -c ${linmos_conf.toRealPath()}
+        ${params.IMAGES}/yandasoft_devel_focal.sif linmos-mpi -c ${linmos_conf.toRealPath()}
         """
 }
 
 
 process generate_selavy_conf {
 
-    container = "${params.IMAGES}/general.sif"
+    container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -168,7 +169,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=20 --ntasks-per-node=6'
+    clusterOptions = '--nodes=20 --ntasks-per-node=10'
 
     input:
         path selavy_conf
@@ -182,14 +183,14 @@ process run_selavy {
         """
         #!/bin/bash
         mpirun singularity exec --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-        ${params.IMAGES}/yandasoft.sif selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
+        ${params.IMAGES}/yandasoft_devel_focal.sif selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         """
 }
 
 
 process insert_selavy_into_emucat {
 
-    container = "${params.IMAGES}/general.sif"
+    container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -197,6 +198,7 @@ process insert_selavy_into_emucat {
         val ser
 
     output:
+        val ser, emit: ser_output
 
     script:
         """
@@ -206,19 +208,16 @@ process insert_selavy_into_emucat {
 }
 
 
-process get_sched_blocks {
+process get_allwise_sources {
 
-    container = "${params.IMAGES}/general.sif"
+    container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
-
-    errorStrategy 'retry'
-    maxErrors 3
 
     input:
         val ser
 
     output:
-        stdout emit: obs_list
+        val "${params.OUTPUT_LHR}/${ser}_allwise.xml", emit: allwise_cat
 
     script:
         """
@@ -226,15 +225,60 @@ process get_sched_blocks {
 
         import pyvo as vo
 
-        query = f"SELECT sb.sb_num " \
-                f"FROM emucat.source_extraction_regions as ser, " \
-                f"emucat.mosaic_prerequisites as mp, " \
-                f"emucat.scheduling_blocks as sb " \
-                f"WHERE ser.id = mp.ser_id and mp.sb_id = sb.id and ser.name = '${ser}'"
+        query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a, " \
+                f"(SELECT extent FROM emucat.source_extraction_regions WHERE name = '${ser}') as sr " \
+                f"WHERE 1 = INTERSECTS(a.ra_dec, sr.extent) ORDER BY ra ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.search(query)
-        print(' '.join(str(x['sb_num']) for x in rowset), end='')
+        rowset = service.search(query, maxrec=service.hardlimit)
+        with open("${params.OUTPUT_LHR}/${ser}_allwise.xml", "w") as f:
+            rowset.to_table().write(output=f, format="votable")
+        """
+}
+
+
+process generate_lhr_conf {
+
+    container = "${params.IMAGES}/emucat_scripts.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        path 'lr_config.conf', emit: lhr_conf
+
+    script:
+        """
+        #!python3
+
+        from jinja2 import Environment, FileSystemLoader
+        from pathlib import Path
+
+        output = Path('${params.OUTPUT_LHR}')
+        j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
+        result = j2_env.get_template('lr_config.j2').render(output=output)
+        with open('lr_config.conf', 'w') as f:
+            print(result, file=f)
+        """
+}
+
+
+process run_lhr {
+
+    container = "${params.IMAGES}/emucat_lhr.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val mwcat
+        val radcat
+        val conf
+
+    output:
+
+    script:
+        """
+        python3 /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf}
         """
 }
 
@@ -247,4 +291,7 @@ workflow {
     generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, params.ser)
     run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, params.ser)
     insert_selavy_into_emucat(run_selavy.out.cat_out, params.ser)
+    generate_lhr_conf(insert_selavy_into_emucat.out.ser_output)
+    get_allwise_sources(insert_selavy_into_emucat.out.ser_output)
+    run_lhr(get_allwise_sources.out.allwise_cat, run_selavy.out.cat_out, generate_lhr_conf.out.lhr_conf)
 }

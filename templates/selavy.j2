@@ -4,24 +4,24 @@ Selavy.Weights.weightsImage                     = {{ weight }}
 Selavy.resultsFile                              = {{ results }}
 Selavy.votFile                                  = {{ votable }}
 Selavy.subimageAnnotationFile                   = {{ annotations }}
-Selavy.nsubx                                    = 5
-Selavy.nsuby                                    = 3
+Selavy.nsubx                                    = 20
+Selavy.nsuby                                    = 10
 Selavy.overlapx                                 = 0
 Selavy.overlapy                                 = 0
 Selavy.imagetype                                = fits
 
-Selavy.VariableThreshold                        = false
-Selavy.VariableThreshold.boxSize                = 50
+Selavy.VariableThreshold                        = true
+Selavy.VariableThreshold.boxSize                = 500
 Selavy.VariableThreshold.imagetype              = fits
 Selavy.VariableThreshold.reuse                  = false
 
-Selavy.threshold                                = 0.001
+Selavy.threshold                                = 0.01
 Selavy.WeightScaling                            = true
 Selavy.Weights                                  = true
 Selavy.Weights.weightsCutoff                    = 0.09
 Selavy.spectralTermsFromTaylor                  = true
 Selavy.findSpectralTerms                        = [true, false]
-#Selavy.snrCut                                  = 5
+Selavy.snrCut                                   = 4
 Selavy.flagGrowth                               = false
 Selavy.growthThreshold                          = 3
 
