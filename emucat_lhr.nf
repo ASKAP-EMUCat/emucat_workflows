@@ -6,9 +6,30 @@ params.emu_vo_url = 'http://146.118.67.65:8080/tap'
 params.INPUT_CONF = "${params.SCRATCH_ROOT}/data/emu/emucat"
 params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/emu/data/raw"
 params.OUTPUT_LINMOS = "${params.SCRATCH_ROOT}/data/emu/data/linmos"
-params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/emu/data/selavy"
-params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/emu/data/lhr"
+params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/emu/data/selavy/${params.ser}/"
+params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/emu/data/lhr/${params.ser}/"
 params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/data/emu/log"
+
+
+process setup {
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        #!/bin/bash
+
+        mkdir -p ${params.OUTPUT_RAW}
+        mkdir -p ${params.OUTPUT_LINMOS}
+        mkdir -p ${params.OUTPUT_SELAVY}
+        mkdir -p ${params.OUTPUT_LHR}
+        mkdir -p ${params.OUTPUT_LOG_DIR}
+        """
+}
 
 
 process get_sched_blocks {
@@ -140,7 +161,6 @@ process generate_selavy_conf {
     script:
         """
         #!python3
-
         from jinja2 import Environment, FileSystemLoader
         from pathlib import Path
 
@@ -169,7 +189,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=20 --ntasks-per-node=10'
+    clusterOptions = '--nodes=20 --ntasks-per-node=6'
 
     input:
         path selavy_conf
@@ -204,6 +224,35 @@ process insert_selavy_into_emucat {
         """
         python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -i ${cat_input.toRealPath()}
+        """
+}
+
+
+process get_component_sources {
+
+    container = "${params.IMAGES}/emucat_scripts.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val "${params.OUTPUT_LHR}/${ser}_components.xml", emit: component_cat
+
+    script:
+        """
+        #!python3
+
+        import pyvo as vo
+
+        query = f"SELECT c.id, c.flux_int, c.flux_int_err, c.ra_deg_cont, c.dec_deg_cont " \
+                f"FROM emucat.components c, emucat.mosaics m, emucat.source_extraction_regions s "\
+                f"WHERE c.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' ORDER BY id ASC"
+
+        service = vo.dal.TAPService('${params.emu_vo_url}')
+        rowset = service.search(query, maxrec=service.hardlimit)
+        with open("${params.OUTPUT_LHR}/${ser}_components.xml", "w") as f:
+            rowset.to_table().write(output=f, format="votable")
         """
 }
 
@@ -278,20 +327,32 @@ process run_lhr {
 
     script:
         """
-        python3 /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf}
+        python3 /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
         """
 }
 
 
+workflow emucat_lhr {
+    take:
+        ser
+
+    main:
+        setup(ser)
+        get_sched_blocks(setup.out.ser_output)
+        casda_download(get_sched_blocks.out.obs_list)
+        generate_linmos_conf(casda_download.out.file_manifest, ser)
+        run_linmos(generate_linmos_conf.out.linmos_conf, ser)
+        generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, ser)
+        run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, ser)
+        insert_selavy_into_emucat(run_selavy.out.cat_out, ser)
+        generate_lhr_conf(insert_selavy_into_emucat.out.ser_output)
+        get_allwise_sources(insert_selavy_into_emucat.out.ser_output)
+        get_component_sources(insert_selavy_into_emucat.out.ser_output)
+        run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
+}
+
+
 workflow {
-    get_sched_blocks(params.ser)
-    casda_download(get_sched_blocks.out.obs_list)
-    generate_linmos_conf(casda_download.out.file_manifest, params.ser)
-    run_linmos(generate_linmos_conf.out.linmos_conf, params.ser)
-    generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, params.ser)
-    run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, params.ser)
-    insert_selavy_into_emucat(run_selavy.out.cat_out, params.ser)
-    generate_lhr_conf(insert_selavy_into_emucat.out.ser_output)
-    get_allwise_sources(insert_selavy_into_emucat.out.ser_output)
-    run_lhr(get_allwise_sources.out.allwise_cat, run_selavy.out.cat_out, generate_lhr_conf.out.lhr_conf)
+    main:
+        emucat_lhr(params.ser)
 }
