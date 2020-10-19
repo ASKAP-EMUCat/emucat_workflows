@@ -4,28 +4,34 @@ Selavy.Weights.weightsImage                     = {{ weight }}
 Selavy.resultsFile                              = {{ results }}
 Selavy.votFile                                  = {{ votable }}
 Selavy.subimageAnnotationFile                   = {{ annotations }}
-Selavy.nsubx                                    = 20
-Selavy.nsuby                                    = 10
-Selavy.overlapx                                 = 0
-Selavy.overlapy                                 = 0
 Selavy.imagetype                                = fits
 
+# These parameters define the measurement of spectral indices
+Selavy.spectralTermsFromTaylor                  = true
+Selavy.findSpectralTerms                        = [true, false]
+Selavy.nsubx                                    = 4
+Selavy.nsuby                                    = 4
+Selavy.overlapx                                 = 0
+Selavy.overlapy                                 = 0
+
 Selavy.VariableThreshold                        = true
-Selavy.VariableThreshold.boxSize                = 500
+Selavy.VariableThreshold.boxSize                = 50
 Selavy.VariableThreshold.imagetype              = fits
 Selavy.VariableThreshold.reuse                  = false
 
-Selavy.threshold                                = 0.01
-Selavy.WeightScaling                            = true
-Selavy.Weights                                  = true
-Selavy.Weights.weightsCutoff                    = 0.09
-Selavy.spectralTermsFromTaylor                  = true
-Selavy.findSpectralTerms                        = [true, false]
-Selavy.snrCut                                   = 4
-Selavy.flagGrowth                               = false
+# Detection threshold
+Selavy.snrCut                                   = 5
+Selavy.flagGrowth                               = true
 Selavy.growthThreshold                          = 3
 
+Selavy.VariableThreshold.ThresholdImageName     = {{ output_path }}/detThresh.image.i.{{ ser }}.cont.smooth.taylor.0
+Selavy.VariableThreshold.NoiseImageName         = {{ output_path }}/noiseMap.image.i.{{ ser }}.cont.smooth.taylor.0
+Selavy.VariableThreshold.AverageImageName       = {{ output_path }}/meanMap.image.i.{{ ser }}.cont.smooth.taylor.0
+Selavy.VariableThreshold.SNRimageName           = {{ output_path }}/snrMap.image.i.{{ ser }}.cont.smooth.taylor.0
+Selavy.Weights.weightsCutoff                    = 0.09
+
 Selavy.Fitter.doFit                             = true
+Selavy.flagAdjacent                             = true
 Selavy.Fitter.fitTypes                          = [full]
 Selavy.Fitter.maxReducedChisq                   = 10.
 Selavy.Fitter.imagetype                         = fits
@@ -36,3 +42,9 @@ Selavy.minPix                                   = 3
 Selavy.minVoxels                                = 3
 Selavy.minChannels                              = 1
 Selavy.sortingParam                             = -pflux
+
+# Not performing RM Synthesis for this case
+Selavy.RMSynthesis                              = false
+Selavy.extractCubelet                           = false
+
+Selavy.precFlux                                 = 6
