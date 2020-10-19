@@ -163,7 +163,10 @@ process generate_selavy_conf {
         #!python3
         from jinja2 import Environment, FileSystemLoader
         from pathlib import Path
+        import os
 
+        ser = '${ser}'
+        output_path = Path('${params.OUTPUT_SELAVY}')
         image = Path('${image_input.toRealPath()}')
         weight = Path('${weight_input.toRealPath()}')
         log = Path('${params.OUTPUT_LOG_DIR}/${ser}_selavy.log')
@@ -172,7 +175,7 @@ process generate_selavy_conf {
         annotations = Path('${params.OUTPUT_SELAVY}/${ser}_annotations.ann')
 
         j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
-        result = j2_env.get_template('selavy.j2').render(image=image, weight=weight, \
+        result = j2_env.get_template('selavy.j2').render(ser=ser, output_path=output_path, image=image, weight=weight, \
                  results=results, votable=votable, annotations=annotations)
 
         with open('selavy.conf', 'w') as f:
@@ -189,7 +192,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=20 --ntasks-per-node=6'
+    clusterOptions = '--nodes=5 --ntasks-per-node=5'
 
     input:
         path selavy_conf
@@ -233,6 +236,9 @@ process get_component_sources {
     container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
+    errorStrategy 'retry'
+    maxErrors 3
+
     input:
         val ser
 
@@ -253,6 +259,7 @@ process get_component_sources {
         rowset = service.search(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_LHR}/${ser}_components.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
+
         """
 }
 
@@ -261,6 +268,9 @@ process get_allwise_sources {
 
     container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    errorStrategy 'retry'
+    maxErrors 3
 
     input:
         val ser
@@ -282,6 +292,7 @@ process get_allwise_sources {
         rowset = service.search(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_LHR}/${ser}_allwise.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
+
         """
 }
 
@@ -324,11 +335,32 @@ process run_lhr {
         val conf
 
     output:
+        val "${params.OUTPUT_LHR}/w1_LR_matches.xml", emit: w1_lr_matches
 
     script:
         """
-        python3 /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        python3 /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
+        > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
         """
+}
+
+
+process insert_lhr_into_emucat {
+
+    container = "${params.IMAGES}/emucat_scripts.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        path w1_lr_matches
+
+    output:
+
+    script:
+        """
+        python3 /scripts/catalog.py import_lhr -c ${params.INPUT_CONF}/cred.ini \
+        -i ${w1_lr_matches.toRealPath()}
+        """
+
 }
 
 
@@ -349,6 +381,7 @@ workflow emucat_lhr {
         get_allwise_sources(insert_selavy_into_emucat.out.ser_output)
         get_component_sources(insert_selavy_into_emucat.out.ser_output)
         run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
+        insert_lhr_into_emucat(run_lhr.out.w1_lr_matches)
 }
 
 
