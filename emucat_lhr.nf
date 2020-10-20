@@ -192,7 +192,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=5 --ntasks-per-node=5'
+    clusterOptions = '--nodes=10 --ntasks-per-node=5'
 
     input:
         path selavy_conf
@@ -206,7 +206,8 @@ process run_selavy {
         """
         #!/bin/bash
         mpirun singularity exec --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-        ${params.IMAGES}/yandasoft_devel_focal.sif selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
+        ${params.IMAGES}/yandasoft_devel_focal.sif selavy -c ${selavy_conf.toRealPath()} \
+        -l ${selavy_log_conf.toRealPath()}
         """
 }
 
@@ -248,7 +249,6 @@ process get_component_sources {
     script:
         """
         #!python3
-
         import pyvo as vo
 
         query = f"SELECT c.id, c.flux_int, c.flux_int_err, c.ra_deg_cont, c.dec_deg_cont " \
@@ -259,7 +259,6 @@ process get_component_sources {
         rowset = service.search(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_LHR}/${ser}_components.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
-
         """
 }
 
@@ -281,7 +280,6 @@ process get_allwise_sources {
     script:
         """
         #!python3
-
         import pyvo as vo
 
         query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a, " \
@@ -292,7 +290,6 @@ process get_allwise_sources {
         rowset = service.search(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_LHR}/${ser}_allwise.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
-
         """
 }
 
