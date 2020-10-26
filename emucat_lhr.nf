@@ -1,6 +1,6 @@
 nextflow.enable.dsl=2
 
-params.ser = 'EMU_2137-5300'
+params.ser = 'EMU_2052-5300'
 params.emu_vo_url = 'http://146.118.67.65:8080/tap'
 
 params.INPUT_CONF = "${params.SCRATCH_ROOT}/data/emu/emucat"
@@ -211,6 +211,25 @@ process run_selavy {
         """
 }
 
+process remove_mosaic_from_emucat {
+
+    container = "${params.IMAGES}/emucat_scripts.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        path cat_input
+        val ser
+
+    output:
+        path cat_input, emit: cat_out
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 /scripts/catalog.py delete_components -s ${ser} -c ${params.INPUT_CONF}/cred.ini
+        """
+}
+
 
 process insert_selavy_into_emucat {
 
@@ -349,8 +368,10 @@ process insert_lhr_into_emucat {
 
     input:
         path w1_lr_matches
+        val ser
 
     output:
+        val ser, emit: ser_output
 
     script:
         """
@@ -358,6 +379,25 @@ process insert_lhr_into_emucat {
         -i ${w1_lr_matches.toRealPath()}
         """
 
+}
+
+
+process import_des_from_lhr {
+
+    container = "${params.IMAGES}/emucat_scripts.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 /scripts/catalog.py import_des_from_lhr -s {ser} -c ${params.INPUT_CONF}/cred.ini \
+        > ${params.OUTPUT_LOG_DIR}/${params.ser}_des_dr1.log
+        """
 }
 
 
@@ -373,12 +413,14 @@ workflow emucat_lhr {
         run_linmos(generate_linmos_conf.out.linmos_conf, ser)
         generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, ser)
         run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, ser)
-        insert_selavy_into_emucat(run_selavy.out.cat_out, ser)
+        remove_mosaic_from_emucat(run_selavy.out.cat_out, ser)
+        insert_selavy_into_emucat(remove_mosaic_from_emucat.out.cat_out, ser)
         generate_lhr_conf(insert_selavy_into_emucat.out.ser_output)
         get_allwise_sources(insert_selavy_into_emucat.out.ser_output)
         get_component_sources(insert_selavy_into_emucat.out.ser_output)
         run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
-        insert_lhr_into_emucat(run_lhr.out.w1_lr_matches)
+        insert_lhr_into_emucat(run_lhr.out.w1_lr_matches, ser)
+        import_des_from_lhr(insert_lhr_into_emucat.out.ser_output)
 }
 
 
