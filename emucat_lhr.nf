@@ -383,6 +383,7 @@ process insert_lhr_into_emucat {
 
 
 process import_des_from_lhr {
+    echo true
 
     container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
@@ -395,8 +396,8 @@ process import_des_from_lhr {
 
     script:
         """
-        python3 /scripts/catalog.py import_des_from_lhr -s {ser} -c ${params.INPUT_CONF}/cred.ini \
-        > ${params.OUTPUT_LOG_DIR}/${params.ser}_des_dr1.log
+        python3 -u /scripts/catalog.py import_des_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
+        > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr1.log
         """
 }
 
