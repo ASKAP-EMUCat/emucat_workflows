@@ -192,7 +192,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=10 --ntasks-per-node=5'
+    clusterOptions = '--nodes=20 --ntasks-per-node=5'
 
     input:
         path selavy_conf
