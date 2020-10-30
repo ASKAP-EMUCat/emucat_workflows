@@ -355,7 +355,7 @@ process run_lhr {
 
     script:
         """
-        python3 /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
+        python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
         > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
         """
 }
