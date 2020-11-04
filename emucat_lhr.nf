@@ -192,7 +192,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=20 --ntasks-per-node=5'
+    clusterOptions = '--nodes=15 --ntasks-per-node=5'
 
     input:
         path selavy_conf
@@ -231,7 +231,7 @@ process remove_mosaic_from_emucat {
 }
 
 
-process insert_selavy_into_emucat {
+process insert_selavy_components_into_emucat {
 
     container = "${params.IMAGES}/emucat_scripts.sif"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
@@ -247,6 +247,24 @@ process insert_selavy_into_emucat {
         """
         python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -i ${cat_input.toRealPath()}
+        """
+}
+
+
+process match_nearest_neighbour_with_allwise {
+
+    container = "${params.IMAGES}/emucat_scripts.sif"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 /scripts/catalog.py match_nearest_neighbour_with_allwise -s ${ser} -c ${params.INPUT_CONF}/cred.ini
         """
 }
 
@@ -415,10 +433,11 @@ workflow emucat_lhr {
         generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, ser)
         run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, ser)
         remove_mosaic_from_emucat(run_selavy.out.cat_out, ser)
-        insert_selavy_into_emucat(remove_mosaic_from_emucat.out.cat_out, ser)
-        generate_lhr_conf(insert_selavy_into_emucat.out.ser_output)
-        get_allwise_sources(insert_selavy_into_emucat.out.ser_output)
-        get_component_sources(insert_selavy_into_emucat.out.ser_output)
+        insert_selavy_components_into_emucat(remove_mosaic_from_emucat.out.cat_out, ser)
+        match_nearest_neighbour_with_allwise(insert_selavy_components_into_emucat.out.ser_output)
+        generate_lhr_conf(insert_selavy_components_into_emucat.out.ser_output)
+        get_allwise_sources(insert_selavy_components_into_emucat.out.ser_output)
+        get_component_sources(insert_selavy_components_into_emucat.out.ser_output)
         run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
         insert_lhr_into_emucat(run_lhr.out.w1_lr_matches, ser)
         import_des_from_lhr(insert_lhr_into_emucat.out.ser_output)
