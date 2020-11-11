@@ -34,7 +34,7 @@ process setup {
 
 process get_sched_blocks {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
@@ -67,7 +67,7 @@ process get_sched_blocks {
 
 process casda_download {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
@@ -89,7 +89,7 @@ process casda_download {
 
 process generate_linmos_conf {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -127,6 +127,9 @@ process generate_linmos_conf {
 
 process run_linmos {
 
+    container = "aussrc/yandasoft_devel_focal:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
     input:
         path linmos_conf
         val ser
@@ -138,15 +141,14 @@ process run_linmos {
     script:
         """
         #!/bin/bash
-        mpirun singularity exec --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-        ${params.IMAGES}/yandasoft_devel_focal.sif linmos-mpi -c ${linmos_conf.toRealPath()}
+        mpirun linmos-mpi -c ${linmos_conf.toRealPath()}
         """
 }
 
 
 process generate_selavy_conf {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -205,15 +207,17 @@ process run_selavy {
     script:
         """
         #!/bin/bash
+        SINGULARITY_PULLFOLDER=${params.IMAGES}
+        singularity pull docker://aussrc/yandasoft_devel_focal:latest
         mpirun singularity exec --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-        ${params.IMAGES}/yandasoft_devel_focal.sif selavy -c ${selavy_conf.toRealPath()} \
-        -l ${selavy_log_conf.toRealPath()}
+        ${params.IMAGES}/yandasoft_devel_focal_latest.sif \
+        selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         """
 }
 
 process remove_mosaic_from_emucat {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -233,7 +237,7 @@ process remove_mosaic_from_emucat {
 
 process insert_selavy_components_into_emucat {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -253,7 +257,7 @@ process insert_selavy_components_into_emucat {
 
 process match_nearest_neighbour_with_allwise {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -271,7 +275,7 @@ process match_nearest_neighbour_with_allwise {
 
 process get_component_sources {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
@@ -302,7 +306,7 @@ process get_component_sources {
 
 process get_allwise_sources {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
@@ -333,7 +337,7 @@ process get_allwise_sources {
 
 process generate_lhr_conf {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -360,7 +364,7 @@ process generate_lhr_conf {
 
 process run_lhr {
 
-    container = "${params.IMAGES}/emucat_lhr.sif"
+    container = "aussrc/emucat_lhr:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -381,7 +385,7 @@ process run_lhr {
 
 process insert_lhr_into_emucat {
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -403,7 +407,7 @@ process insert_lhr_into_emucat {
 process import_des_from_lhr {
     echo true
 
-    container = "${params.IMAGES}/emucat_scripts.sif"
+    container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
