@@ -3,12 +3,12 @@ nextflow.enable.dsl=2
 params.ser = 'EMU_2052-5300'
 params.emu_vo_url = 'http://146.118.67.65:8080/tap'
 
-params.INPUT_CONF = "${params.SCRATCH_ROOT}/data/emu/emucat"
-params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/emu/data/raw"
-params.OUTPUT_LINMOS = "${params.SCRATCH_ROOT}/data/emu/data/linmos"
-params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/emu/data/selavy/${params.ser}/"
-params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/emu/data/lhr/${params.ser}/"
-params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/data/emu/log"
+params.INPUT_CONF = "${params.SCRATCH_ROOT}/emucat"
+params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/raw/${params.ser}/"
+params.OUTPUT_LINMOS = "${params.SCRATCH_ROOT}/data/linmos/${params.ser}/"
+params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/selavy/${params.ser}/"
+params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/lhr/${params.ser}/"
+params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/log"
 
 
 process setup {
@@ -141,7 +141,10 @@ process run_linmos {
     script:
         """
         #!/bin/bash
-        mpirun linmos-mpi -c ${linmos_conf.toRealPath()}
+
+        if [ ! -f "${params.OUTPUT_LINMOS}/${ser}.image.taylor.0.fits" ]; then
+            mpirun linmos-mpi -c ${linmos_conf.toRealPath()}
+        fi
         """
 }
 
@@ -194,7 +197,7 @@ process generate_selavy_conf {
 process run_selavy {
 
     executor = 'slurm'
-    clusterOptions = '--nodes=15 --ntasks-per-node=5'
+    clusterOptions = '--nodes=12 --ntasks-per-node=6'
 
     input:
         path selavy_conf
@@ -207,11 +210,15 @@ process run_selavy {
     script:
         """
         #!/bin/bash
-        SINGULARITY_PULLFOLDER=${params.IMAGES}
-        singularity pull docker://aussrc/yandasoft_devel_focal:latest
-        mpirun singularity exec --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-        ${params.IMAGES}/yandasoft_devel_focal_latest.sif \
-        selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
+
+        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
+            export SINGULARITY_PULLDIR=${params.IMAGES}
+            singularity pull yandasoft_devel_focal_latest.sif docker://aussrc/yandasoft_devel_focal:latest
+            mpirun --mca btl_tcp_if_exclude docker0,lo singularity exec \
+            --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
+            ${params.IMAGES}/yandasoft_devel_focal_latest.sif \
+            selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
+        fi
         """
 }
 
@@ -313,6 +320,7 @@ process get_allwise_sources {
     maxErrors 3
 
     input:
+        val mosaic
         val ser
 
     output:
@@ -322,10 +330,25 @@ process get_allwise_sources {
         """
         #!python3
         import pyvo as vo
+        from astropy.io import fits
+        from astropy.wcs import WCS
 
-        query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a, " \
-                f"(SELECT extent FROM emucat.source_extraction_regions WHERE name = '${ser}') as sr " \
-                f"WHERE 1 = INTERSECTS(a.ra_dec, sr.extent) ORDER BY ra ASC"
+        with fits.open('${mosaic}') as hdu:
+            naxis1 = float(hdu[0].header['NAXIS1'])
+            naxis2 = float(hdu[0].header['NAXIS2'])
+            w = WCS(hdu[0].header)
+            a = w.pixel_to_world_values(0, 0, 0, 0)
+            b = w.pixel_to_world_values(naxis1, naxis2, 0, 0)
+            print(a[0].item(), a[1].item())
+            print(b[0].item(), b[1].item())
+
+            ra_c = round((a[0].item() + b[0].item())/2., 3)
+            dec_c = round((a[1].item() + b[1].item())/2., 3)
+            ra_ext = round(abs((a[0].item() - b[0].item())/2), 3)
+            dec_ext = round(abs((a[1].item() - b[1].item())/2), 3)
+
+        query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a " \
+                f"WHERE 1 = INTERSECTS(a.ra_dec, BOX({ra_c}, {dec_c}, {ra_ext}, {dec_ext})) ORDER BY ra ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
         rowset = service.search(query, maxrec=service.hardlimit)
@@ -440,7 +463,7 @@ workflow emucat_lhr {
         insert_selavy_components_into_emucat(remove_mosaic_from_emucat.out.cat_out, ser)
         match_nearest_neighbour_with_allwise(insert_selavy_components_into_emucat.out.ser_output)
         generate_lhr_conf(insert_selavy_components_into_emucat.out.ser_output)
-        get_allwise_sources(insert_selavy_components_into_emucat.out.ser_output)
+        get_allwise_sources(run_linmos.out.image_out, ser)
         get_component_sources(insert_selavy_components_into_emucat.out.ser_output)
         run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
         insert_lhr_into_emucat(run_lhr.out.w1_lr_matches, ser)
