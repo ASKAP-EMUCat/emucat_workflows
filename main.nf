@@ -98,6 +98,7 @@ process generate_linmos_conf {
 
     output:
         path 'linmos.conf', emit: linmos_conf
+        path 'linmos.log_cfg', emit: linmos_log_conf
 
     script:
         """
@@ -114,12 +115,18 @@ process generate_linmos_conf {
         weights = [Path(weight).with_suffix('') for weight in data['weights'] if '.0.' in weight]
         image_out = Path('${params.OUTPUT_LINMOS}/${ser}.image.taylor.0')
         weight_out = Path('${params.OUTPUT_LINMOS}/${ser}.weights.taylor.0')
+        log = Path('${params.OUTPUT_LOG_DIR}/${ser}_linmos.log')
 
         j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
         result = j2_env.get_template('linmos.j2').render(images=images, weights=weights, \
         image_out=image_out, weight_out=weight_out)
 
         with open('linmos.conf', 'w') as f:
+            print(result, file=f)
+
+        result = j2_env.get_template('yandasoft_log.j2').render(log=log)
+
+        with open('linmos.log_cfg', 'w') as f:
             print(result, file=f)
         """
 }
@@ -132,6 +139,7 @@ process run_linmos {
 
     input:
         path linmos_conf
+        path linmos_log_conf
         val ser
 
     output:
@@ -143,7 +151,7 @@ process run_linmos {
         #!/bin/bash
 
         if [ ! -f "${params.OUTPUT_LINMOS}/${ser}.image.taylor.0.fits" ]; then
-            mpirun linmos-mpi -c ${linmos_conf.toRealPath()}
+            mpirun linmos-mpi -c ${linmos_conf.toRealPath()} -l ${linmos_log_conf.toRealPath()}
         fi
         """
 }
@@ -161,7 +169,7 @@ process generate_selavy_conf {
 
     output:
         path 'selavy.conf', emit: selavy_conf
-        path 'yandasoft.log_cfg', emit: selavy_log_conf
+        path 'selavy.log_cfg', emit: selavy_log_conf
 
     script:
         """
@@ -169,6 +177,10 @@ process generate_selavy_conf {
         from jinja2 import Environment, FileSystemLoader
         from pathlib import Path
         import os
+        from astropy.io import fits
+
+        # Correct header
+        fits.setval('${image_input.toRealPath()}', 'BUNIT', value='Jy/beam ')
 
         ser = '${ser}'
         output_path = Path('${params.OUTPUT_SELAVY}')
@@ -188,7 +200,7 @@ process generate_selavy_conf {
 
         result = j2_env.get_template('yandasoft_log.j2').render(log=log)
 
-        with open('yandasoft.log_cfg', 'w') as f:
+        with open('selavy.log_cfg', 'w') as f:
             print(result, file=f)
         """
 }
@@ -387,7 +399,7 @@ process generate_lhr_conf {
 
 process run_lhr {
 
-    container = "aussrc/emucat_lhr:latest"
+    container = "aussrc/emucat_lhr:parallel"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -400,6 +412,7 @@ process run_lhr {
 
     script:
         """
+        export LHR_CPU=24
         python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
         > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
         """
@@ -456,7 +469,7 @@ workflow emucat_lhr {
         get_sched_blocks(setup.out.ser_output)
         casda_download(get_sched_blocks.out.obs_list)
         generate_linmos_conf(casda_download.out.file_manifest, ser)
-        run_linmos(generate_linmos_conf.out.linmos_conf, ser)
+        run_linmos(generate_linmos_conf.out.linmos_conf, generate_linmos_conf.out.linmos_log_conf, ser)
         generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, ser)
         run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, ser)
         remove_mosaic_from_emucat(run_selavy.out.cat_out, ser)
