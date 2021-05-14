@@ -8,6 +8,7 @@ params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/raw/${params.ser}/"
 params.OUTPUT_LINMOS = "${params.SCRATCH_ROOT}/data/linmos/${params.ser}/"
 params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/selavy/${params.ser}/"
 params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/lhr/${params.ser}/"
+params.OUTPUT_EXTENDED_DOUBLES = "${params.SCRATCH_ROOT}/data/extended_doubles/${params.ser}/"
 params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/log"
 
 
@@ -28,6 +29,7 @@ process setup {
         mkdir -p ${params.OUTPUT_SELAVY}
         mkdir -p ${params.OUTPUT_LHR}
         mkdir -p ${params.OUTPUT_LOG_DIR}
+        mkdir -p ${params.OUTPUT_EXTENDED_DOUBLES}
         """
 }
 
@@ -180,7 +182,7 @@ process generate_selavy_conf {
         from astropy.io import fits
 
         # Correct header
-        fits.setval('${image_input.toRealPath()}', 'BUNIT', value='Jy/beam ')
+        #fits.setval('${image_input.toRealPath()}', 'BUNIT', value='Jy/beam ')
 
         ser = '${ser}'
         output_path = Path('${params.OUTPUT_SELAVY}')
@@ -460,6 +462,102 @@ process import_des_from_lhr {
 }
 
 
+process get_extended_double_components {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+        val "${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components.xml", emit: comp_cat
+
+    script:
+        """
+        #!python3
+        import pyvo as vo
+
+        query = f"SELECT c.id, c.ra_deg_cont, c.dec_deg_cont, c.flux_peak, c.flux_int, " \
+        f"maj_axis_deconv, min_axis_deconv, pos_ang_deconv " \
+        f"FROM emucat.components c, emucat.mosaics m, emucat.source_extraction_regions s " \
+        f"WHERE c.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' " \
+        f"AND c.id NOT IN " \
+        f"(SELECT co.id FROM emucat.components co, emucat.mosaics mo, emucat.source_extraction_regions se, " \
+        f"emucat.sources_nearest_allwise n WHERE n.component_id=co.id AND co.mosaic_id=mo.id " \
+        f"AND mo.ser_id=se.id AND se.name='${ser}')"
+
+        service = vo.dal.TAPService('${params.emu_vo_url}')
+        rowset = service.search(query, maxrec=service.hardlimit)
+        with open("${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components.xml", "w") as f:
+            rowset.to_table().write(output=f, format="votable")
+        """
+}
+
+process generate_extended_double_conf {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        path 'ed_config.conf', emit: ed_conf
+
+    script:
+        """
+        #!python3
+
+        from jinja2 import Environment, FileSystemLoader
+        from pathlib import Path
+
+        output = Path('${params.OUTPUT_EXTENDED_DOUBLES}')
+        j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
+        result = j2_env.get_template('ed_config.j2').render(output=output)
+        with open('ed_config.conf', 'w') as f:
+            print(result, file=f)
+        """
+}
+
+
+process run_extended_doubles {
+
+    container = "aussrc/emucat_double_sources:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+        val ed_conf
+        val comp_cat
+
+    output:
+        val "${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components_pairs.xml", emit: source_cat
+
+    script:
+        """
+        rm -f ${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components_pairs.xml && \
+        python3 -u /scripts/emu_doubles.py --config ${ed_conf} ${comp_cat}
+        """
+}
+
+
+process insert_extended_doubles_into_emucat {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val source_cat
+
+    script:
+        """
+        python3 -u /scripts/catalog.py import_extended_doubles -i ${source_cat} -c ${params.INPUT_CONF}/cred.ini
+        """
+}
+
+
 workflow emucat_lhr {
     take:
         ser
@@ -481,6 +579,10 @@ workflow emucat_lhr {
         run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
         insert_lhr_into_emucat(run_lhr.out.w1_lr_matches, ser)
         import_des_from_lhr(insert_lhr_into_emucat.out.ser_output)
+        get_extended_double_components(import_des_from_lhr.out.ser_output)
+        generate_extended_double_conf(get_extended_double_components.out.ser_output)
+        run_extended_doubles(get_extended_double_components.out.ser_output, generate_extended_double_conf.out.ed_conf, get_extended_double_components.out.comp_cat)
+        insert_extended_doubles_into_emucat(run_extended_doubles.out.source_cat)
 }
 
 
