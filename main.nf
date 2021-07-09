@@ -1,6 +1,6 @@
 nextflow.enable.dsl=2
 
-params.ser = 'EMU_2052-5300'
+params.ser = 'EMU_2052-5900'
 params.emu_vo_url = 'http://146.118.67.65:8080/tap'
 
 params.INPUT_CONF = "${params.SCRATCH_ROOT}/emucat"
@@ -220,6 +220,7 @@ process run_selavy {
 
     output:
         val "${params.OUTPUT_SELAVY}/${ser}_results.components.xml", emit: cat_out
+        val "${params.OUTPUT_SELAVY}/${ser}_results.islands.xml", emit: island_out
 
     script:
         """
@@ -243,10 +244,12 @@ process remove_mosaic_from_emucat {
 
     input:
         path cat_input
+        path island_input
         val ser
 
     output:
         path cat_input, emit: cat_out
+        path island_input, emit: island_out
         val ser, emit: ser_output
 
     script:
@@ -272,6 +275,25 @@ process insert_selavy_components_into_emucat {
         """
         python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -i ${cat_input.toRealPath()}
+        """
+}
+
+process insert_selavy_islands_into_emucat {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        path island_input
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 /scripts/catalog.py import_selavy_island -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
+        -i ${island_input.toRealPath()}
         """
 }
 
@@ -353,16 +375,11 @@ process get_allwise_sources {
             w = WCS(hdu[0].header)
             a = w.pixel_to_world_values(0, 0, 0, 0)
             b = w.pixel_to_world_values(naxis1, naxis2, 0, 0)
-            print(a[0].item(), a[1].item())
-            print(b[0].item(), b[1].item())
-
-            ra_c = round((a[0].item() + b[0].item())/2., 3)
-            dec_c = round((a[1].item() + b[1].item())/2., 3)
-            ra_ext = round(abs((a[0].item() - b[0].item())/2), 3)
-            dec_ext = round(abs((a[1].item() - b[1].item())/2), 3)
+            x0, y0 = a[0].item(), a[1].item()
+            x1, y1 = b[0].item(), b[1].item()
 
         query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a " \
-                f"WHERE 1 = INTERSECTS(a.ra_dec, BOX({ra_c}, {dec_c}, {ra_ext}, {dec_ext})) ORDER BY ra ASC"
+                f"WHERE 1 = INTERSECTS(a.ra_dec, POLYGON({x0},{y0},{x0},{y1},{x1},{y1},{x1},{y0})) ORDER BY ra ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
         rowset = service.search(query, maxrec=service.hardlimit)
@@ -570,8 +587,9 @@ workflow emucat_lhr {
         run_linmos(generate_linmos_conf.out.linmos_conf, generate_linmos_conf.out.linmos_log_conf, ser)
         generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, ser)
         run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, ser)
-        remove_mosaic_from_emucat(run_selavy.out.cat_out, ser)
+        remove_mosaic_from_emucat(run_selavy.out.cat_out, run_selavy.out.island_out, ser)
         insert_selavy_components_into_emucat(remove_mosaic_from_emucat.out.cat_out, ser)
+        insert_selavy_islands_into_emucat(remove_mosaic_from_emucat.out.island_out, insert_selavy_components_into_emucat.out.ser_output)
         match_nearest_neighbour_with_allwise(insert_selavy_components_into_emucat.out.ser_output)
         generate_lhr_conf(insert_selavy_components_into_emucat.out.ser_output)
         get_allwise_sources(run_linmos.out.image_out, ser)
