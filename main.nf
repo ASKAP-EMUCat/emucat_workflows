@@ -575,6 +575,25 @@ process insert_extended_doubles_into_emucat {
 }
 
 
+process insert_properties_into_emucat {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 -u /scripts/properties.py import_properties -s ${ser} -c ${params.INPUT_CONF}/cred.ini
+        """
+}
+
+
+
 workflow emucat_lhr {
     take:
         ser
@@ -601,6 +620,7 @@ workflow emucat_lhr {
         generate_extended_double_conf(get_extended_double_components.out.ser_output)
         run_extended_doubles(get_extended_double_components.out.ser_output, generate_extended_double_conf.out.ed_conf, get_extended_double_components.out.comp_cat)
         insert_extended_doubles_into_emucat(run_extended_doubles.out.source_cat)
+        insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output)
 }
 
 
