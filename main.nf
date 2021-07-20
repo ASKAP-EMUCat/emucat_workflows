@@ -568,6 +568,9 @@ process insert_extended_doubles_into_emucat {
     input:
         val source_cat
 
+    output:
+        val ser, emit: ser_output
+        
     script:
         """
         python3 -u /scripts/catalog.py import_extended_doubles -i ${source_cat} -c ${params.INPUT_CONF}/cred.ini
