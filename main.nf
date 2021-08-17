@@ -1,7 +1,7 @@
 nextflow.enable.dsl=2
 
 params.ser = 'EMU_2052-5900'
-params.emu_vo_url = 'http://146.118.67.65:8080/tap'
+params.emu_vo_url = 'https://emucat.aussrc.org/tap'
 
 params.INPUT_CONF = "${params.SCRATCH_ROOT}/emucat"
 params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/raw/${params.ser}/"
@@ -597,7 +597,7 @@ process insert_properties_into_emucat {
 
 
 
-workflow emucat_lhr {
+workflow emucat_ser {
     take:
         ser
 
@@ -629,5 +629,5 @@ workflow emucat_lhr {
 
 workflow {
     main:
-        emucat_lhr(params.ser)
+        emucat_ser(params.ser)
 }
