@@ -209,7 +209,6 @@ process generate_selavy_conf {
 
 
 process run_selavy {
-
     executor = 'slurm'
     clusterOptions = '--nodes=12 --ntasks-per-node=6'
 
@@ -229,10 +228,11 @@ process run_selavy {
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
             singularity pull yandasoft_devel_focal_latest.sif docker://aussrc/yandasoft_devel_focal:latest
-            mpirun --mca btl_tcp_if_exclude docker0,lo singularity exec \
-            --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-            ${params.IMAGES}/yandasoft_devel_focal_latest.sif \
-            selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
+            mpirun --mca btl_tcp_if_exclude docker0,lo \
+                   singularity exec \
+                   --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
+                   ${params.IMAGES}/yandasoft_devel_focal_latest.sif \
+                   selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         fi
         """
 }
