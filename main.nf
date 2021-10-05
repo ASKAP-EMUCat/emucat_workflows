@@ -55,7 +55,7 @@ process get_sched_blocks {
         import pyvo as vo
 
         query = f"SELECT sb.sb_num " \
-                f"FROM emucat.source_extraction_regions as ser, " \
+                f"FROM emucat.regions as ser, " \
                 f"emucat.mosaic_prerequisites as mp, " \
                 f"emucat.scheduling_blocks as sb " \
                 f"WHERE ser.id = mp.ser_id and mp.sb_id = sb.id and ser.name = '${ser}'"
@@ -336,7 +336,7 @@ process get_component_sources {
         import pyvo as vo
 
         query = f"SELECT c.id, c.flux_int, c.flux_int_err, c.ra_deg_cont, c.dec_deg_cont " \
-                f"FROM emucat.components c, emucat.mosaics m, emucat.source_extraction_regions s "\
+                f"FROM emucat.components c, emucat.mosaics m, emucat.regions s "\
                 f"WHERE c.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' ORDER BY id ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
@@ -498,10 +498,10 @@ process get_extended_double_components {
 
         query = f"SELECT c.id, c.ra_deg_cont, c.dec_deg_cont, c.flux_peak, c.flux_int, " \
         f"maj_axis_deconv, min_axis_deconv, pos_ang_deconv " \
-        f"FROM emucat.components c, emucat.mosaics m, emucat.source_extraction_regions s " \
+        f"FROM emucat.components c, emucat.mosaics m, emucat.regions s " \
         f"WHERE c.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' " \
         f"AND c.id NOT IN " \
-        f"(SELECT co.id FROM emucat.components co, emucat.mosaics mo, emucat.source_extraction_regions se, " \
+        f"(SELECT co.id FROM emucat.components co, emucat.mosaics mo, emucat.regions se, " \
         f"emucat.sources_nearest_allwise n WHERE n.component_id=co.id AND co.mosaic_id=mo.id " \
         f"AND mo.ser_id=se.id AND se.name='${ser}')"
 
