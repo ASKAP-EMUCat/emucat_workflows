@@ -459,7 +459,7 @@ process insert_lhr_into_emucat {
 }
 
 
-process import_des_from_lhr {
+process import_des_dr1_from_lhr {
     echo true
 
     container = "aussrc/emucat_scripts:latest"
@@ -473,8 +473,28 @@ process import_des_from_lhr {
 
     script:
         """
-        python3 -u /scripts/catalog.py import_des_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
-        > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr1.log
+        python3 -u /scripts/noao.py import_des_dr1_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
+        -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr1.log
+        """
+}
+
+
+process import_des_dr2_from_lhr {
+    echo true
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 -u /scripts/noao.py import_des_dr2_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
+        -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr2.log
         """
 }
 
@@ -596,34 +616,50 @@ process insert_properties_into_emucat {
 }
 
 
-
 workflow emucat_ser {
     take:
         ser
 
     main:
         setup(ser)
+
+        // Download Image data
         get_sched_blocks(setup.out.ser_output)
         casda_download(get_sched_blocks.out.obs_list)
+
+        // Mosaic
         generate_linmos_conf(casda_download.out.file_manifest, ser)
         run_linmos(generate_linmos_conf.out.linmos_conf, generate_linmos_conf.out.linmos_log_conf, ser)
+        
+        // Source extraction
         generate_selavy_conf(run_linmos.out.image_out, run_linmos.out.weight_out, ser)
         run_selavy(generate_selavy_conf.out.selavy_conf, generate_selavy_conf.out.selavy_log_conf, ser)
         remove_mosaic_from_emucat(run_selavy.out.cat_out, run_selavy.out.island_out, ser)
         insert_selavy_components_into_emucat(remove_mosaic_from_emucat.out.cat_out, ser)
         insert_selavy_islands_into_emucat(remove_mosaic_from_emucat.out.island_out, insert_selavy_components_into_emucat.out.ser_output)
+        
+        // Matching
         match_nearest_neighbour_with_allwise(insert_selavy_components_into_emucat.out.ser_output)
-        generate_lhr_conf(insert_selavy_components_into_emucat.out.ser_output)
+        
+        // LHR algorithm
+        generate_lhr_conf(match_nearest_neighbour_with_allwise.out.ser_output)
         get_allwise_sources(run_linmos.out.image_out, ser)
         get_component_sources(insert_selavy_components_into_emucat.out.ser_output)
         run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
         insert_lhr_into_emucat(run_lhr.out.w1_lr_matches, ser)
-        import_des_from_lhr(insert_lhr_into_emucat.out.ser_output)
-        get_extended_double_components(import_des_from_lhr.out.ser_output)
+
+        // Extended doubles algorithm
+        get_extended_double_components(insert_lhr_into_emucat.out.ser_output)
         generate_extended_double_conf(get_extended_double_components.out.ser_output)
         run_extended_doubles(get_extended_double_components.out.ser_output, generate_extended_double_conf.out.ed_conf, get_extended_double_components.out.comp_cat)
         insert_extended_doubles_into_emucat(run_extended_doubles.out.source_cat)
+        
+        // Properties
         insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output)
+
+        // Value add processes
+        import_des_dr1_from_lhr(insert_lhr_into_emucat.out.ser_output)
+        import_des_dr2_from_lhr(insert_lhr_into_emucat.out.ser_output)
 }
 
 
