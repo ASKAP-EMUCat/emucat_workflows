@@ -570,6 +570,7 @@ process run_extended_doubles {
         val comp_cat
 
     output:
+        val ser, emit: ser_output
         val "${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components_pairs.xml", emit: source_cat
 
     script:
@@ -586,6 +587,7 @@ process insert_extended_doubles_into_emucat {
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
+        val ser
         val source_cat
 
     output:
@@ -652,7 +654,7 @@ workflow emucat_ser {
         get_extended_double_components(insert_lhr_into_emucat.out.ser_output)
         generate_extended_double_conf(get_extended_double_components.out.ser_output)
         run_extended_doubles(get_extended_double_components.out.ser_output, generate_extended_double_conf.out.ed_conf, get_extended_double_components.out.comp_cat)
-        insert_extended_doubles_into_emucat(run_extended_doubles.out.source_cat)
+        insert_extended_doubles_into_emucat(run_extended_doubles.out.ser_output, run_extended_doubles.out.source_cat)
         
         // Properties
         insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output)
