@@ -61,7 +61,7 @@ process get_sched_blocks {
                 f"WHERE ser.id = mp.ser_id and mp.sb_id = sb.id and ser.name = '${ser}'"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.search(query)
+        rowset = service.run_async(query)
         print(' '.join(str(x['sb_num']) for x in rowset), end='')
         """
 }
@@ -340,7 +340,7 @@ process get_component_sources {
                 f"WHERE c.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' ORDER BY id ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.search(query, maxrec=service.hardlimit)
+        rowset = service.run_async(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_LHR}/${ser}_components.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
         """
@@ -382,7 +382,7 @@ process get_allwise_sources {
                 f"WHERE 1 = INTERSECTS(a.ra_dec, POLYGON({x0},{y0},{x0},{y1},{x1},{y1},{x1},{y0})) ORDER BY ra ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.search(query, maxrec=service.hardlimit)
+        rowset = service.run_async(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_LHR}/${ser}_allwise.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
         """
@@ -526,7 +526,7 @@ process get_extended_double_components {
         f"AND mo.ser_id=se.id AND se.name='${ser}')"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.search(query, maxrec=service.hardlimit)
+        rowset = service.run_async(query, maxrec=service.hardlimit)
         with open("${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components.xml", "w") as f:
             rowset.to_table().write(output=f, format="votable")
         """
