@@ -136,7 +136,7 @@ process generate_linmos_conf {
 
 process run_linmos {
 
-    container = "aussrc/yandasoft_devel_focal:latest"
+    container = "csirocass/yandasoft:1.4.0-mpich"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -153,7 +153,7 @@ process run_linmos {
         #!/bin/bash
 
         if [ ! -f "${params.OUTPUT_LINMOS}/${ser}.image.taylor.0.fits" ]; then
-            mpirun linmos-mpi -c ${linmos_conf.toRealPath()} -l ${linmos_log_conf.toRealPath()}
+            linmos -c ${linmos_conf.toRealPath()} -l ${linmos_log_conf.toRealPath()}
         fi
         """
 }
@@ -209,8 +209,6 @@ process generate_selavy_conf {
 
 
 process run_selavy {
-    executor = 'slurm'
-    clusterOptions = '--nodes=12 --ntasks-per-node=6'
 
     input:
         path selavy_conf
@@ -227,11 +225,11 @@ process run_selavy {
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
-            singularity pull yandasoft_devel_focal_latest.sif docker://aussrc/yandasoft_devel_focal:latest
-            mpirun --mca btl_tcp_if_exclude docker0,lo \
+            singularity pull yandasoft_1.4.0-mpich.sif docker://csirocass/yandasoft:1.4.0-mpich
+            srun -N 12 -c 6 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                   ${params.IMAGES}/yandasoft_devel_focal_latest.sif \
+                   ${params.IMAGES}/yandasoft_1.4.0-mpich.sif \
                    selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         fi
         """
@@ -431,9 +429,16 @@ process run_lhr {
 
     script:
         """
-        export LHR_CPU=24
-        python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
-        > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        #!/bin/bash
+
+        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.xml" ]; then
+            mkdir -p ${params.OUTPUT_LHR}/astropy
+            export XDG_CACHE_HOME=${params.OUTPUT_LHR}
+            export MPLCONFIGDIR=${params.OUTPUT_LHR}
+            export LHR_CPU=24
+            python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
+            > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        fi
         """
 }
 
