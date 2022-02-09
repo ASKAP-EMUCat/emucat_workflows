@@ -425,13 +425,13 @@ process run_lhr {
         val conf
 
     output:
-        val "${params.OUTPUT_LHR}/w1_LR_matches.xml", emit: w1_lr_matches
+        val "${params.OUTPUT_LHR}/w1_LR_matches.csv", emit: w1_lr_matches
 
     script:
         """
         #!/bin/bash
 
-        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.xml" ]; then
+        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.csv" ]; then
             mkdir -p ${params.OUTPUT_LHR}/astropy
             export XDG_CACHE_HOME=${params.OUTPUT_LHR}
             export MPLCONFIGDIR=${params.OUTPUT_LHR}
@@ -465,7 +465,9 @@ process insert_lhr_into_emucat {
 
 
 process import_des_dr1_from_lhr {
-    echo true
+    
+    errorStrategy 'retry'
+    maxErrors 3
 
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
@@ -478,6 +480,7 @@ process import_des_dr1_from_lhr {
 
     script:
         """
+        export HOME=${params.SCRATCH_ROOT}
         python3 -u /scripts/noao.py import_des_dr1_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr1.log
         """
@@ -485,7 +488,9 @@ process import_des_dr1_from_lhr {
 
 
 process import_des_dr2_from_lhr {
-    echo true
+    
+    errorStrategy 'retry'
+    maxErrors 3
 
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
@@ -498,6 +503,7 @@ process import_des_dr2_from_lhr {
 
     script:
         """
+        export HOME=${params.SCRATCH_ROOT}
         python3 -u /scripts/noao.py import_des_dr2_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr2.log
         """
