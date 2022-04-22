@@ -58,7 +58,10 @@ process get_sched_blocks {
                 f"FROM emucat.regions as ser, " \
                 f"emucat.mosaic_prerequisites as mp, " \
                 f"emucat.scheduling_blocks as sb " \
-                f"WHERE ser.id = mp.ser_id and mp.sb_id = sb.id and ser.name = '${ser}'"
+                f"WHERE ser.id = mp.ser_id " \
+                f"and mp.sb_id = sb.id " \
+                f"and ser.name = '${ser}' " \
+                f"and sb.sb_num is not null"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
         rowset = service.run_async(query)
