@@ -225,6 +225,8 @@ process run_selavy {
     script:
         """
         #!/bin/bash
+        #SBATCH -N 12
+        #SBATCH --tasks-per-node 6
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
