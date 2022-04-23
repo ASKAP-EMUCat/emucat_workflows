@@ -228,8 +228,8 @@ process run_selavy {
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
-            singularity pull -F yandasoft_1.4.0-mpich.sif docker://csirocass/yandasoft:1.4.0-mpich
-            srun -N 12 -c 6 \
+            singularity pull yandasoft_1.4.0-mpich.sif docker://csirocass/yandasoft:1.4.0-mpich
+            srun -N 12 --ntasks-per-node 6 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
                    ${params.IMAGES}/yandasoft_1.4.0-mpich.sif \
