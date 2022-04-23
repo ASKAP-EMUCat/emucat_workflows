@@ -122,7 +122,7 @@ process generate_linmos_conf {
         weight_out = Path('${params.OUTPUT_LINMOS}/${ser}.weights.taylor.0')
         log = Path('${params.OUTPUT_LOG_DIR}/${ser}_linmos.log')
 
-        j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
+        j2_env = Environment(loader=FileSystemLoader('$baseDir/templates'), trim_blocks=True)
         result = j2_env.get_template('linmos.j2').render(images=images, weights=weights, \
         image_out=image_out, weight_out=weight_out)
 
@@ -196,7 +196,7 @@ process generate_selavy_conf {
         votable = Path('${params.OUTPUT_SELAVY}/${ser}_votable.xml')
         annotations = Path('${params.OUTPUT_SELAVY}/${ser}_annotations.ann')
 
-        j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
+        j2_env = Environment(loader=FileSystemLoader('$baseDir/templates'), trim_blocks=True)
         result = j2_env.get_template('selavy.j2').render(ser=ser, output_path=output_path, image=image, weight=weight, \
                  results=results, votable=votable, annotations=annotations)
 
@@ -409,7 +409,7 @@ process generate_lhr_conf {
         from pathlib import Path
 
         output = Path('${params.OUTPUT_LHR}')
-        j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
+        j2_env = Environment(loader=FileSystemLoader('$baseDir/templates'), trim_blocks=True)
         result = j2_env.get_template('lr_config.j2').render(output=output)
         with open('lr_config.conf', 'w') as f:
             print(result, file=f)
@@ -565,7 +565,7 @@ process generate_extended_double_conf {
         from pathlib import Path
 
         output = Path('${params.OUTPUT_EXTENDED_DOUBLES}')
-        j2_env = Environment(loader=FileSystemLoader('${params.INPUT_CONF}/templates'), trim_blocks=True)
+        j2_env = Environment(loader=FileSystemLoader('$baseDir/templates'), trim_blocks=True)
         result = j2_env.get_template('ed_config.j2').render(output=output)
         with open('ed_config.conf', 'w') as f:
             print(result, file=f)
