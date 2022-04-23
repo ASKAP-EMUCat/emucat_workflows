@@ -225,12 +225,10 @@ process run_selavy {
     script:
         """
         #!/bin/bash
-        #SBATCH -N 12
-        #SBATCH --tasks-per-node 6
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
-            singularity pull -F yandasoft_1.4.0-mpich.sif docker://csirocass/yandasoft:1.4.0-mpich
+            singularity pull -F ${params.IMAGES}/yandasoft_1.4.0-mpich.sif docker://csirocass/yandasoft:1.4.0-mpich
             srun -N 12 -c 6 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
