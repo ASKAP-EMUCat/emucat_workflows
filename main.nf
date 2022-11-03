@@ -13,7 +13,6 @@ params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/log"
 
 
 process setup {
-    process.executor = 'local'
     
     input:
         val ser
@@ -37,7 +36,6 @@ process setup {
 
 process get_sched_blocks {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -74,7 +72,6 @@ process get_sched_blocks {
 
 process casda_download {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -97,7 +94,6 @@ process casda_download {
 
 process generate_linmos_conf {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -168,7 +164,6 @@ process run_linmos {
 
 process generate_selavy_conf {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -267,7 +262,6 @@ process remove_mosaic_from_emucat {
 
 process insert_selavy_components_into_emucat {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -287,7 +281,6 @@ process insert_selavy_components_into_emucat {
 
 process insert_selavy_islands_into_emucat {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -308,7 +301,6 @@ process insert_selavy_islands_into_emucat {
 
 process match_nearest_neighbour_with_allwise {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -327,7 +319,6 @@ process match_nearest_neighbour_with_allwise {
 
 process get_component_sources {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -359,7 +350,6 @@ process get_component_sources {
 
 process get_allwise_sources {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -402,7 +392,6 @@ process get_allwise_sources {
 
 process generate_lhr_conf {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -459,7 +448,6 @@ process run_lhr {
 
 process insert_lhr_into_emucat {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -481,7 +469,6 @@ process insert_lhr_into_emucat {
 
 process import_des_dr1_from_lhr {
     
-    process.executor = 'local'
     errorStrategy 'retry'
     maxErrors 3
 
@@ -505,7 +492,6 @@ process import_des_dr1_from_lhr {
 
 process import_des_dr2_from_lhr {
     
-    process.executor = 'local'
     errorStrategy 'retry'
     maxErrors 3
 
@@ -529,7 +515,6 @@ process import_des_dr2_from_lhr {
 
 process get_extended_double_components {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -563,7 +548,6 @@ process get_extended_double_components {
 
 process generate_extended_double_conf {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -591,7 +575,6 @@ process generate_extended_double_conf {
 
 process run_extended_doubles {
 
-    process.executor = 'local'
     container = "aussrc/emucat_double_sources:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -614,7 +597,6 @@ process run_extended_doubles {
 
 process insert_extended_doubles_into_emucat {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
@@ -634,7 +616,6 @@ process insert_extended_doubles_into_emucat {
 
 process insert_properties_into_emucat {
 
-    process.executor = 'local'
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
