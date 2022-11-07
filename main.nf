@@ -434,14 +434,12 @@ process run_lhr {
         """
         #!/bin/bash
 
-        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.csv" ]; then
-            mkdir -p ${params.OUTPUT_LHR}/astropy
-            export XDG_CACHE_HOME=${params.OUTPUT_LHR}
-            export MPLCONFIGDIR=${params.OUTPUT_LHR}
-            export LHR_CPU=32
-            python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
-            > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
-        fi
+        mkdir -p ${params.OUTPUT_LHR}/astropy
+        export XDG_CACHE_HOME=${params.OUTPUT_LHR}
+        export MPLCONFIGDIR=${params.OUTPUT_LHR}
+        export LHR_CPU=32
+        python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
+        > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
         """
 }
 
