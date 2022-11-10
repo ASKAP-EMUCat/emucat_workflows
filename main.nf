@@ -341,9 +341,17 @@ process get_component_sources {
                 f"WHERE c.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' ORDER BY id ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.run_async(query, maxrec=service.hardlimit)
+        job = service.submit_job(query, maxrec=service.hardlimit)
+        job.run()
+
+        while True:
+            if job.phase == 'EXECUTING':
+                time.sleep(10)
+            else:
+                break
+
         with open("${params.OUTPUT_LHR}/${ser}_components.xml", "w") as f:
-            rowset.to_table().write(output=f, format="votable")
+            job.fetch_result().to_table().write(output=f, format="votable")
         """
 }
 
@@ -383,9 +391,17 @@ process get_allwise_sources {
                 f"WHERE 1 = INTERSECTS(CIRCLE(a.ra_dec, 0), POLYGON({x0},{y0},{x0},{y1},{x1},{y1},{x1},{y0})) ORDER BY ra ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.run_async(query, maxrec=service.hardlimit)
+        job = service.submit_job(query, maxrec=service.hardlimit)
+        job.run()
+
+        while True:
+            if job.phase == 'EXECUTING':
+                time.sleep(10)
+            else:
+                break
+
         with open("${params.OUTPUT_LHR}/${ser}_allwise.xml", "w") as f:
-            rowset.to_table().write(output=f, format="votable")
+            job.fetch_result().to_table().write(output=f, format="votable")
         """
 }
 
@@ -516,6 +532,9 @@ process get_extended_double_components {
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
+    errorStrategy 'retry'
+    maxErrors 3
+
     input:
         val ser
 
@@ -538,9 +557,17 @@ process get_extended_double_components {
         f"AND mo.ser_id=se.id AND se.name='${ser}')"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
-        rowset = service.run_async(query, maxrec=service.hardlimit)
+        job = service.submit_job(query, maxrec=service.hardlimit)
+        job.run()
+
+        while True:
+            if job.phase == 'EXECUTING':
+                time.sleep(10)
+            else:
+                break
+
         with open("${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components.xml", "w") as f:
-            rowset.to_table().write(output=f, format="votable")
+            job.fetch_result().to_table().write(output=f, format="votable")
         """
 }
 
