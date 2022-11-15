@@ -1,6 +1,6 @@
 nextflow.enable.dsl=2
 
-params.ser = 'EMU_2052-5900'
+params.ser = ''
 params.emu_vo_url = 'https://emucat.aussrc.org/tap'
 
 params.INPUT_CONF = "${params.SCRATCH_ROOT}/emucat"
@@ -53,6 +53,10 @@ process get_sched_blocks {
         #!python3
 
         import pyvo as vo
+
+        ser = '${ser}'
+        if not ser:
+            raise ValueError('SER is empty')
 
         query = f"SELECT sb.sb_num " \
                 f"FROM emucat.regions as ser, " \
@@ -139,7 +143,7 @@ process generate_linmos_conf {
 
 process run_linmos {
 
-    container = "csirocass/yandasoft:1.4.0-mpich"
+    container = "csirocass/yandasoft:1.7.0-casacore3.5.0-mpich-ci"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -228,11 +232,11 @@ process run_selavy {
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
-            singularity pull yandasoft_1.4.0-mpich.sif docker://csirocass/yandasoft:1.4.0-mpich
+            singularity pull yandasoft_1.7.0-mpich.sif docker://csirocass/yandasoft:1.7.0-casacore3.5.0-mpich-ci
             srun -N 12 --ntasks-per-node 6 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                   ${params.IMAGES}/yandasoft_1.4.0-mpich.sif \
+                   ${params.IMAGES}/yandasoft_1.7.0-mpich.sif \
                    selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         fi
         """
