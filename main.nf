@@ -259,7 +259,9 @@ process remove_mosaic_from_emucat {
 
     script:
         """
-        python3 /scripts/catalog.py delete_components -s ${ser} -c ${params.INPUT_CONF}/cred.ini
+        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
+            python3 /scripts/catalog.py delete_components -s ${ser} -c ${params.INPUT_CONF}/cred.ini
+        fi
         """
 }
 
@@ -278,8 +280,9 @@ process insert_selavy_components_into_emucat {
 
     script:
         """
-        python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
-        -i ${cat_input.toRealPath()}
+        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
+            python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${cat_input.toRealPath()}
+        fi
         """
 }
 
@@ -297,8 +300,9 @@ process insert_selavy_islands_into_emucat {
 
     script:
         """
-        python3 /scripts/catalog.py import_selavy_island -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
-        -i ${island_input.toRealPath()}
+        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
+            python3 /scripts/catalog.py import_selavy_island -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${island_input.toRealPath()}
+        fi
         """
 }
 
@@ -316,7 +320,9 @@ process match_nearest_neighbour_with_allwise {
 
     script:
         """
-        python3 /scripts/catalog.py match_nearest_neighbour_with_allwise -s ${ser} -c ${params.INPUT_CONF}/cred.ini
+        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
+            python3 /scripts/catalog.py match_nearest_neighbour_with_allwise -s ${ser} -c ${params.INPUT_CONF}/cred.ini
+        fi
         """
 }
 
@@ -453,13 +459,14 @@ process run_lhr {
     script:
         """
         #!/bin/bash
-
-        mkdir -p ${params.OUTPUT_LHR}/astropy
-        export XDG_CACHE_HOME=${params.OUTPUT_LHR}
-        export MPLCONFIGDIR=${params.OUTPUT_LHR}
-        export LHR_CPU=32
-        python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
-        > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.csv" ]; then
+            mkdir -p ${params.OUTPUT_LHR}/astropy
+            export XDG_CACHE_HOME=${params.OUTPUT_LHR}
+            export MPLCONFIGDIR=${params.OUTPUT_LHR}
+            export LHR_CPU=32
+            python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
+            > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        fi
         """
 }
 
@@ -478,8 +485,9 @@ process insert_lhr_into_emucat {
 
     script:
         """
-        python3 /scripts/catalog.py import_lhr -c ${params.INPUT_CONF}/cred.ini \
-        -i ${w1_lr_matches.toRealPath()}
+        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.csv" ]; then
+            python3 /scripts/catalog.py import_lhr -c ${params.INPUT_CONF}/cred.ini -i ${w1_lr_matches.toRealPath()}
+        fi
         """
 
 }
@@ -526,6 +534,29 @@ process import_des_dr2_from_lhr {
         """
         export HOME=${params.SCRATCH_ROOT}
         python3 -u /scripts/noao.py import_des_dr2_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
+        -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr2.log
+        """
+}
+
+
+process import_vhs_from_lhr {
+    
+    errorStrategy 'retry'
+    maxErrors 3
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        export HOME=${params.SCRATCH_ROOT}
+        python3 -u /scripts/noao.py import_vhs_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr2.log
         """
 }
@@ -705,6 +736,7 @@ workflow emucat_ser {
         // Value add processes
         import_des_dr1_from_lhr(insert_lhr_into_emucat.out.ser_output)
         import_des_dr2_from_lhr(insert_lhr_into_emucat.out.ser_output)
+        import_vhs_from_lhr(insert_lhr_into_emucat.out.ser_output)
 }
 
 
