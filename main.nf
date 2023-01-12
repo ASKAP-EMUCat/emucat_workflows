@@ -344,6 +344,7 @@ process get_component_sources {
     script:
         """
         #!python3
+        import time
         import pyvo as vo
 
         query = f"SELECT c.id, c.flux_int, c.flux_int_err, c.ra_deg_cont, c.dec_deg_cont " \
@@ -384,6 +385,7 @@ process get_allwise_sources {
     script:
         """
         #!python3
+        import time
         import pyvo as vo
         from astropy.io import fits
         from astropy.wcs import WCS
@@ -580,6 +582,7 @@ process get_extended_double_components {
     script:
         """
         #!python3
+        import time
         import pyvo as vo
 
         query = f"SELECT c.id, c.ra_deg_cont, c.dec_deg_cont, c.flux_peak, c.flux_int, " \
