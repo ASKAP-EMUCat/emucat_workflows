@@ -143,7 +143,7 @@ process generate_linmos_conf {
 
 process run_linmos {
 
-    container = "csirocass/yandasoft:1.7.0-casacore3.5.0-mpich-ci"
+    container = "csirocass/askapsoft:1.9.1-casacore3.5.0-mpich"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -232,11 +232,11 @@ process run_selavy {
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
-            singularity pull yandasoft_1.7.0-mpich.sif docker://csirocass/yandasoft:1.7.0-casacore3.5.0-mpich-ci
+            singularity pull askapsoft_1.9.1-mpich.sif docker://csirocass/askapsoft:1.9.1-casacore3.5.0-mpich
             srun -N 12 --ntasks-per-node 6 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                   ${params.IMAGES}/yandasoft_1.7.0-mpich.sif \
+                   ${params.IMAGES}/askapsoft_1.9.1-mpich.sif \
                    selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         fi
         """
