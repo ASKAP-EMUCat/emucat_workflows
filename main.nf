@@ -233,7 +233,7 @@ process run_selavy {
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
             export SINGULARITY_PULLDIR=${params.IMAGES}
             singularity pull askapsoft_1.9.1-mpich.sif docker://csirocass/askapsoft:1.9.1-casacore3.5.0-mpich
-            srun -N 12 --ntasks-per-node 6 --mem-per-cpu=128G \
+            srun -N 12 --ntasks-per-node 6 --mem=128G \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
                    ${params.IMAGES}/askapsoft_1.9.1-mpich.sif \
