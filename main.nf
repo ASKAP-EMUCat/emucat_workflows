@@ -400,7 +400,7 @@ process get_allwise_sources {
             x1, y1 = b[0].item(), b[1].item()
 
         query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a " \
-                f"WHERE 1 = INTERSECTS(CIRCLE(a.ra_dec, 0), POLYGON({x0},{y0},{x0},{y1},{x1},{y1},{x1},{y0})) ORDER BY ra ASC"
+                f"WHERE 1 = INTERSECTS(a.ra_dec, POLYGON({x0},{y0},{x0},{y1},{x1},{y1},{x1},{y0})) ORDER BY ra ASC"
 
         service = vo.dal.TAPService('${params.emu_vo_url}')
         job = service.submit_job(query, maxrec=service.hardlimit)
