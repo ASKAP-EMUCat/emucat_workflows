@@ -559,7 +559,7 @@ process import_vhs_from_lhr {
         """
         export HOME=${params.SCRATCH_ROOT}
         python3 -u /scripts/noao.py import_vhs_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
-        -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr2.log
+        -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_vhs_from_lhr.log
         """
 }
 
