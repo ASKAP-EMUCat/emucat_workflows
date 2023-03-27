@@ -231,12 +231,10 @@ process run_selavy {
         #!/bin/bash
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            export SINGULARITY_PULLDIR=${params.IMAGES}
-            singularity pull askapsoft_1.9.1-mpich.sif docker://csirocass/askapsoft:1.9.1-casacore3.5.0-mpich
             srun -N 12 --ntasks-per-node=6 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                   ${params.IMAGES}/askapsoft_1.9.1-mpich.sif \
+                   ${params.IMAGES}/csirocass-askapsoft.img \
                    selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         fi
         """
