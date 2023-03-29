@@ -36,6 +36,7 @@ process download_singularity {
         singularity pull !{params.IMAGES}/aussrc-emucat_double_sources-latest.img docker://aussrc/emucat_double_sources:latest
         singularity pull !{params.IMAGES}/aussrc-emucat_diffusefilter-latest.img docker://aussrc/emucat_diffusefilter:latest
         singularity pull !{params.IMAGES}/csirocass-askapsoft.img docker://csirocass/askapsoft:1.9.1-casacore3.5.0-mpich
+        singularity pull !{params.IMAGES}/rclone-rclone-latest.img docker://rclone/rclone:latest
 
         lock_release
         '''
