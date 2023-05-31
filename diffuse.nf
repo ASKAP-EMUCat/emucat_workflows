@@ -8,7 +8,7 @@ include { objectstore_upload_directory } from './modules/objectstore'
 
 params.INPUT_CONF = "${params.SCRATCH_ROOT}/emucat"
 params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/raw_diffuse/${params.SBID}/"
-params.BUCKET = "ja3:aussrc/emu"
+params.BUCKET = "ja3:aussrc/emu/diffuse"
 
 process setup {
     
