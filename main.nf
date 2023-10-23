@@ -24,6 +24,12 @@ process setup {
         """
         #!/bin/bash
 
+        if [ -z "${ser}" ]
+        then
+            echo "ser is empty"
+            exit -1
+        fi
+
         mkdir -p ${params.OUTPUT_RAW}
         mkdir -p ${params.OUTPUT_LINMOS}
         mkdir -p ${params.OUTPUT_SELAVY}
@@ -80,18 +86,18 @@ process casda_download {
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     errorStrategy 'retry'
-    maxErrors 3
+    maxErrors 4
 
     input:
         val obs_list
 
     output:
-        path 'manifest.json', emit: file_manifest
+        val "${params.OUTPUT_RAW}/manifest.json", emit: file_manifest
 
     script:
         """
         python3 /scripts/casda.py --list $obs_list -o ${params.OUTPUT_RAW} \
-        -m manifest.json -p ${params.INPUT_CONF}/cred.ini -c true
+        -m ${params.OUTPUT_RAW}/manifest.json -p ${params.INPUT_CONF}/cred.ini -c true
         """
 }
 
@@ -106,8 +112,8 @@ process generate_linmos_conf {
         val ser
 
     output:
-        path 'linmos.conf', emit: linmos_conf
-        path 'linmos.log_cfg', emit: linmos_log_conf
+        val "${params.OUTPUT_LINMOS}/linmos.conf", emit: linmos_conf
+        val "${params.OUTPUT_LINMOS}/linmos.log_cfg", emit: linmos_log_conf
 
     script:
         """
@@ -130,12 +136,12 @@ process generate_linmos_conf {
         result = j2_env.get_template('linmos.j2').render(images=images, weights=weights, \
         image_out=image_out, weight_out=weight_out)
 
-        with open('linmos.conf', 'w') as f:
+        with open('${params.OUTPUT_LINMOS}/linmos.conf', 'w') as f:
             print(result, file=f)
 
         result = j2_env.get_template('yandasoft_log.j2').render(log=log)
 
-        with open('linmos.log_cfg', 'w') as f:
+        with open('${params.OUTPUT_LINMOS}/linmos.log_cfg', 'w') as f:
             print(result, file=f)
         """
 }
@@ -143,7 +149,7 @@ process generate_linmos_conf {
 
 process run_linmos {
 
-    container = "csirocass/askapsoft:1.9.1-casacore3.5.0-mpich"
+    container = "csirocass/askapsoft:1.13.0-setonix-lustrempich"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -177,8 +183,8 @@ process generate_selavy_conf {
         val ser
 
     output:
-        path 'selavy.conf', emit: selavy_conf
-        path 'selavy.log_cfg', emit: selavy_log_conf
+        val "${params.OUTPUT_SELAVY}/selavy.conf", emit: selavy_conf
+        val "${params.OUTPUT_SELAVY}/selavy.log_cfg", emit: selavy_log_conf
 
     script:
         """
@@ -204,12 +210,12 @@ process generate_selavy_conf {
         result = j2_env.get_template('selavy.j2').render(ser=ser, output_path=output_path, image=image, weight=weight, \
                  results=results, votable=votable, annotations=annotations)
 
-        with open('selavy.conf', 'w') as f:
+        with open('${params.OUTPUT_SELAVY}/selavy.conf', 'w') as f:
             print(result, file=f)
 
         result = j2_env.get_template('yandasoft_log.j2').render(log=log)
 
-        with open('selavy.log_cfg', 'w') as f:
+        with open('${params.OUTPUT_SELAVY}/selavy.log_cfg', 'w') as f:
             print(result, file=f)
         """
 }
@@ -231,10 +237,10 @@ process run_selavy {
         #!/bin/bash
 
         if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            srun -N 12 --ntasks-per-node=6 \
+            srun --export=ALL --mpi=pmi2 -n 36 \
                    singularity exec \
                    --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                   ${params.IMAGES}/csirocass-askapsoft.img \
+                   ${params.IMAGES}/csirocass-askapsoft-1.13.0-setonix-lustrempich.img \
                    selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         fi
         """
