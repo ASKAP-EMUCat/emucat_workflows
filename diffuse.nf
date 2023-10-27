@@ -65,7 +65,7 @@ process run_diffuse {
 
     script:
         """
-        python3 /app/diffusefilter/scripts/EMU_filter.py $image_path
+        EMU_filter.py $image_path
         """
 }
 
