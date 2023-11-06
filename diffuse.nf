@@ -111,5 +111,5 @@ workflow {
         set_diffuse_output_path(run_diffuse.out.out_image_path)
         objectstore_upload_directory(set_diffuse_output_path.out.out_image_path.trim(), bucket)
 
-        objectstore_upload_directory.out.output.view()
+        //objectstore_upload_directory.out.output.view()
 }
