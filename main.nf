@@ -263,9 +263,7 @@ process remove_mosaic_from_emucat {
 
     script:
         """
-        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            python3 /scripts/catalog.py delete_components -s ${ser} -c ${params.INPUT_CONF}/cred.ini
-        fi
+        python3 /scripts/catalog.py delete_components -s ${ser} -c ${params.INPUT_CONF}/cred.ini
         """
 }
 
@@ -284,9 +282,7 @@ process insert_selavy_components_into_emucat {
 
     script:
         """
-        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${cat_input.toRealPath()}
-        fi
+        python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${cat_input.toRealPath()}
         """
 }
 
@@ -304,9 +300,7 @@ process insert_selavy_islands_into_emucat {
 
     script:
         """
-        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            python3 /scripts/catalog.py import_selavy_island -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${island_input.toRealPath()}
-        fi
+        python3 /scripts/catalog.py import_selavy_island -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${island_input.toRealPath()}
         """
 }
 
@@ -324,9 +318,7 @@ process match_nearest_neighbour_with_allwise {
 
     script:
         """
-        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            python3 /scripts/catalog.py match_nearest_neighbour_with_allwise -s ${ser} -c ${params.INPUT_CONF}/cred.ini
-        fi
+        python3 /scripts/catalog.py match_nearest_neighbour_with_allwise -s ${ser} -c ${params.INPUT_CONF}/cred.ini
         """
 }
 
@@ -465,14 +457,12 @@ process run_lhr {
     script:
         """
         #!/bin/bash
-        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.csv" ]; then
-            mkdir -p ${params.OUTPUT_LHR}/astropy
-            export XDG_CACHE_HOME=${params.OUTPUT_LHR}
-            export MPLCONFIGDIR=${params.OUTPUT_LHR}
-            export LHR_CPU=32
-            python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} \
-            > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
-        fi
+
+        mkdir -p ${params.OUTPUT_LHR}/astropy
+        export XDG_CACHE_HOME=${params.OUTPUT_LHR}
+        export MPLCONFIGDIR=${params.OUTPUT_LHR}
+        export LHR_CPU=32
+        python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
         """
 }
 
@@ -491,11 +481,8 @@ process insert_lhr_into_emucat {
 
     script:
         """
-        if [ ! -f "${params.OUTPUT_LHR}/w1_LR_matches.csv" ]; then
-            python3 /scripts/catalog.py import_lhr -c ${params.INPUT_CONF}/cred.ini -i ${w1_lr_matches.toRealPath()}
-        fi
+        python3 /scripts/catalog.py import_lhr -c ${params.INPUT_CONF}/cred.ini -i ${w1_lr_matches.toRealPath()}
         """
-
 }
 
 
