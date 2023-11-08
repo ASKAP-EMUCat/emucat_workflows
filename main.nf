@@ -30,6 +30,13 @@ process setup {
             exit -1
         fi
 
+        rm -rf ${params.OUTPUT_RAW}
+        rm -rf ${params.OUTPUT_LINMOS}
+        rm -rf ${params.OUTPUT_SELAVY}
+        rm -rf ${params.OUTPUT_LHR}
+        rm -rf ${params.OUTPUT_LOG_DIR}
+        rm -rf ${params.OUTPUT_EXTENDED_DOUBLES}
+
         mkdir -p ${params.OUTPUT_RAW}
         mkdir -p ${params.OUTPUT_LINMOS}
         mkdir -p ${params.OUTPUT_SELAVY}
@@ -97,7 +104,7 @@ process casda_download {
     script:
         """
         python3 /scripts/casda.py --list $obs_list -o ${params.OUTPUT_RAW} \
-        -m ${params.OUTPUT_RAW}/manifest.json -p ${params.INPUT_CONF}/cred.ini -c true
+        -m ${params.OUTPUT_RAW}/manifest.json -p ${params.INPUT_CONF}/cred.ini -c false
         """
 }
 
@@ -165,9 +172,7 @@ process run_linmos {
         """
         #!/bin/bash
 
-        if [ ! -f "${params.OUTPUT_LINMOS}/${ser}.image.taylor.0.fits" ]; then
-            linmos -c ${linmos_conf.toRealPath()} -l ${linmos_log_conf.toRealPath()}
-        fi
+        linmos -c ${linmos_conf.toRealPath()} -l ${linmos_log_conf.toRealPath()}
         """
 }
 
@@ -236,13 +241,11 @@ process run_selavy {
         """
         #!/bin/bash
 
-        if [ ! -f "${params.OUTPUT_SELAVY}/${ser}_results.components.xml" ]; then
-            srun --export=ALL --mpi=pmi2 -n 36 \
-                   singularity exec \
-                   --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                   ${params.IMAGES}/csirocass-askapsoft-1.13.0-setonix-lustrempich.img \
-                   selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
-        fi
+        srun --export=ALL --mpi=pmi2 -n 36 \
+                singularity exec \
+                --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
+                ${params.IMAGES}/csirocass-askapsoft-1.13.0-setonix-lustrempich.img \
+                selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         """
 }
 

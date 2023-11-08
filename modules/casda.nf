@@ -25,6 +25,6 @@ process casda_download {
     script:
         """
         python3 /scripts/casda.py --list $obs_list -o $output \
-        -m manifest.json -p $conf/cred.ini -c true
+        -m manifest.json -p $conf/cred.ini -c false
         """
 }
