@@ -70,28 +70,25 @@ process run_diffuse {
 }
 
 
-process set_diffuse_output_path {
+process cleanup {
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
         val image_path
 
-    output:
-        stdout emit: out_image_path
-
     script:
         """
         #!python3
-        from pathlib import Path
+        import os
+        import glob
 
-        path = Path("${image_path}")
-        existing_path = Path(f"{path.parent.absolute()}/{path.stem}.diffuse.fits")
-        Path(f"{path.parent.absolute()}/upload/").mkdir(parents=True, exist_ok=True)
-        n_path = f"{path.parent.absolute()}/upload/{path.stem}.diffuse.fits"
-        if existing_path.exists():
-            existing_path.rename(Path(n_path))
-        print(f"{path.parent.absolute()}/upload/")
+        dir = "${image_path}"
+        direct = os.path.dirname(dir)
+
+        for f in glob.glob(f"{direct}/*"):
+            if "diffuse" not in os.path.basename(f):
+                os.remove(f)
         """
 }
 
@@ -108,8 +105,6 @@ workflow {
         casda_download(setup.out.pass_though_output, output_raw, input_conf)
         get_diffuse_input_path(casda_download.out.file_manifest)
         run_diffuse(get_diffuse_input_path.out.out_image_path.trim())
-        set_diffuse_output_path(run_diffuse.out.out_image_path)
-        //objectstore_upload_directory(set_diffuse_output_path.out.out_image_path.trim(), bucket)
-
-        //objectstore_upload_directory.out.output.view()
+        run_diffuse.out.out_image_path.view()
+        cleanup(run_diffuse.out.out_image_path)
 }
