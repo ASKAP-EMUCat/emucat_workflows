@@ -366,6 +366,45 @@ process get_component_sources {
 }
 
 
+process get_island_sources {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    errorStrategy 'retry'
+    maxErrors 3
+
+    input:
+        val ser
+
+    output:
+        val "${params.OUTPUT_LHR}/${ser}_islands.xml", emit: island_cat
+
+    script:
+        """
+        #!python3
+        import time
+        import pyvo as vo
+
+        query = f"SELECT i.id, i.flux_int, i.flux_int_err, i.ra_deg_cont, i.dec_deg_cont " \
+                f"FROM emucat.islands i, emucat.mosaics m, emucat.regions s "\
+                f"WHERE i.mosaic_id=m.id AND m.ser_id=s.id AND s.name='${ser}' AND i.n_components > 1 ORDER BY id ASC"
+
+        service = vo.dal.TAPService('${params.emu_vo_url}')
+        job = service.submit_job(query, maxrec=service.hardlimit)
+        job.run()
+
+        while True:
+            if job.phase == 'EXECUTING':
+                time.sleep(10)
+            else:
+                break
+
+        with open("${params.OUTPUT_LHR}/${ser}_islands.xml", "w") as f:
+            job.fetch_result().to_table().write(output=f, format="votable")
+        """
+}
+
 process get_allwise_sources {
 
     container = "aussrc/emucat_scripts:latest"
@@ -444,7 +483,7 @@ process generate_lhr_conf {
 }
 
 
-process run_lhr {
+process run_lhr_components {
 
     container = "aussrc/emucat_lhr:parallel"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
@@ -466,6 +505,37 @@ process run_lhr {
         export MPLCONFIGDIR=${params.OUTPUT_LHR}
         export LHR_CPU=32
         python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        cp ${params.OUTPUT_LHR}/w1_LR_matches.csv ${params.OUTPUT_LHR}/w1_LR_matches_components.csv
+        cp ${params.OUTPUT_LHR}/w1_LR_matches.fits ${params.OUTPUT_LHR}/w1_LR_matches_components.fits      
+        """
+}
+
+
+process run_lhr_islands {
+
+    container = "aussrc/emucat_lhr:parallel"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        val mwcat
+        val radcat
+        val conf
+        val ser
+
+    output:
+        val "${params.OUTPUT_LHR}/w1_LR_matches_islands.csv", emit: w1_lr_matches
+
+    script:
+        """
+        #!/bin/bash
+
+        mkdir -p ${params.OUTPUT_LHR}/astropy
+        export XDG_CACHE_HOME=${params.OUTPUT_LHR}
+        export MPLCONFIGDIR=${params.OUTPUT_LHR}
+        export LHR_CPU=32
+        python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
+        cp ${params.OUTPUT_LHR}/w1_LR_matches.csv ${params.OUTPUT_LHR}/w1_LR_matches_islands.csv
+        cp ${params.OUTPUT_LHR}/w1_LR_matches.fits ${params.OUTPUT_LHR}/w1_LR_matches_islands.fits"       
         """
 }
 
@@ -485,6 +555,25 @@ process insert_lhr_into_emucat {
     script:
         """
         python3 /scripts/catalog.py import_lhr -c ${params.INPUT_CONF}/cred.ini -i ${w1_lr_matches.toRealPath()}
+        """
+}
+
+
+process insert_lhr_islands_into_emucat {
+
+    container = "aussrc/emucat_scripts:latest"
+    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    input:
+        path w1_lr_matches
+        val ser
+
+    output:
+        val ser, emit: ser_output
+
+    script:
+        """
+        python3 /scripts/catalog.py import_lhr_islands -c ${params.INPUT_CONF}/cred.ini -i ${w1_lr_matches.toRealPath()}
         """
 }
 
@@ -678,6 +767,7 @@ process insert_properties_into_emucat {
 
     input:
         val ser
+        val ser2
 
     output:
         val ser, emit: ser_output
@@ -714,21 +804,26 @@ workflow emucat_ser {
         // Matching
         match_nearest_neighbour_with_allwise(insert_selavy_components_into_emucat.out.ser_output)
         
-        // LHR algorithm
+        // LHR algorithm for components
         generate_lhr_conf(match_nearest_neighbour_with_allwise.out.ser_output)
         get_allwise_sources(run_linmos.out.image_out, ser)
         get_component_sources(insert_selavy_components_into_emucat.out.ser_output)
-        run_lhr(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
-        insert_lhr_into_emucat(run_lhr.out.w1_lr_matches, ser)
+        run_lhr_components(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
+        insert_lhr_into_emucat(run_lhr_components.out.w1_lr_matches, ser)
+
+        // LHR algorithm for islands
+        get_island_sources(insert_selavy_islands_into_emucat.out.ser_output)
+        run_lhr_islands(get_allwise_sources.out.allwise_cat, get_island_sources.out.island_cat, generate_lhr_conf.out.lhr_conf, insert_lhr_into_emucat.out.ser_output)
+        insert_lhr_islands_into_emucat(run_lhr_islands.out.w1_lr_matches, ser)
 
         // Extended doubles algorithm
         get_extended_double_components(insert_lhr_into_emucat.out.ser_output)
         generate_extended_double_conf(get_extended_double_components.out.ser_output)
         run_extended_doubles(get_extended_double_components.out.ser_output, generate_extended_double_conf.out.ed_conf, get_extended_double_components.out.comp_cat)
         insert_extended_doubles_into_emucat(run_extended_doubles.out.ser_output, run_extended_doubles.out.source_cat)
-        
+
         // Properties
-        insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output)
+        insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output, insert_lhr_islands_into_emucat.out.ser_output)
 
         // Value add processes
         import_des_dr1_from_lhr(insert_lhr_into_emucat.out.ser_output)
