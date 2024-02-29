@@ -718,7 +718,7 @@ workflow emucat_ser {
         ser
 
     main:
-        //setup(ser)
+        setup(ser)
 
         // Download Image data
         get_sched_blocks(setup.out.ser_output)
