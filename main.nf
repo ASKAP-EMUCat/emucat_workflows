@@ -8,8 +8,17 @@ params.OUTPUT_RAW = "${params.SCRATCH_ROOT}/data/raw/${params.ser}/"
 params.OUTPUT_LINMOS = "${params.SCRATCH_ROOT}/data/linmos/${params.ser}/"
 params.OUTPUT_SELAVY = "${params.SCRATCH_ROOT}/data/selavy/${params.ser}/"
 params.OUTPUT_LHR = "${params.SCRATCH_ROOT}/data/lhr/${params.ser}/"
+params.OUTPUT_LHR_ISLAND = "${params.SCRATCH_ROOT}/data/lhr_island/${params.ser}/"
 params.OUTPUT_EXTENDED_DOUBLES = "${params.SCRATCH_ROOT}/data/extended_doubles/${params.ser}/"
 params.OUTPUT_LOG_DIR = "${params.SCRATCH_ROOT}/log"
+
+
+include {
+    generate_lhr_conf as generate_lhr_conf;
+    generate_lhr_conf as generate_lhr_island_conf;
+    get_allwise_sources as get_lhr_allwise_sources;
+    get_allwise_sources as get_lhr_island_allwise_sources;
+} from './modules/lhr'
 
 
 process setup {
@@ -34,6 +43,7 @@ process setup {
         rm -rf ${params.OUTPUT_LINMOS}
         rm -rf ${params.OUTPUT_SELAVY}
         rm -rf ${params.OUTPUT_LHR}
+        rm -ef ${params.OUTPUT_LHR_ISLAND}
         rm -rf ${params.OUTPUT_LOG_DIR}
         rm -rf ${params.OUTPUT_EXTENDED_DOUBLES}
 
@@ -41,6 +51,7 @@ process setup {
         mkdir -p ${params.OUTPUT_LINMOS}
         mkdir -p ${params.OUTPUT_SELAVY}
         mkdir -p ${params.OUTPUT_LHR}
+        mkdir -p ${params.OUTPUT_LHR_ISLAND}
         mkdir -p ${params.OUTPUT_LOG_DIR}
         mkdir -p ${params.OUTPUT_EXTENDED_DOUBLES}
         """
@@ -246,6 +257,7 @@ process run_selavy {
                 --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
                 ${params.IMAGES}/csirocass-askapsoft-1.13.0-setonix-lustrempich.img \
                 selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
+
         """
 }
 
@@ -378,7 +390,7 @@ process get_island_sources {
         val ser
 
     output:
-        val "${params.OUTPUT_LHR}/${ser}_islands.xml", emit: island_cat
+        val "${params.OUTPUT_LHR_ISLAND}/${ser}_islands.xml", emit: island_cat
 
     script:
         """
@@ -400,87 +412,11 @@ process get_island_sources {
             else:
                 break
 
-        with open("${params.OUTPUT_LHR}/${ser}_islands.xml", "w") as f:
+        with open("${params.OUTPUT_LHR_ISLAND}/${ser}_islands.xml", "w") as f:
             job.fetch_result().to_table().write(output=f, format="votable")
         """
 }
 
-process get_allwise_sources {
-
-    container = "aussrc/emucat_scripts:latest"
-    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
-
-    errorStrategy 'retry'
-    maxErrors 3
-
-    input:
-        val mosaic
-        val ser
-
-    output:
-        val "${params.OUTPUT_LHR}/${ser}_allwise.xml", emit: allwise_cat
-
-    script:
-        """
-        #!python3
-        import time
-        import pyvo as vo
-        from astropy.io import fits
-        from astropy.wcs import WCS
-
-        with fits.open('${mosaic}') as hdu:
-            naxis1 = float(hdu[0].header['NAXIS1'])
-            naxis2 = float(hdu[0].header['NAXIS2'])
-            w = WCS(hdu[0].header)
-            a = w.pixel_to_world_values(0, 0, 0, 0)
-            b = w.pixel_to_world_values(naxis1, naxis2, 0, 0)
-            x0, y0 = a[0].item(), a[1].item()
-            x1, y1 = b[0].item(), b[1].item()
-
-        query = f"SELECT designation, ra, dec, w1mpro, w1sigmpro FROM emucat.allwise as a " \
-                f"WHERE 1 = INTERSECTS(a.ra_dec, POLYGON({x0},{y0},{x0},{y1},{x1},{y1},{x1},{y0}))"
-
-        service = vo.dal.TAPService('${params.emu_vo_url}')
-        job = service.submit_job(query, maxrec=service.hardlimit)
-        job.run()
-
-        while True:
-            if job.phase == 'EXECUTING':
-                time.sleep(10)
-            else:
-                break
-
-        with open("${params.OUTPUT_LHR}/${ser}_allwise.xml", "w") as f:
-            job.fetch_result().to_table().write(output=f, format="votable")
-        """
-}
-
-
-process generate_lhr_conf {
-
-    container = "aussrc/emucat_scripts:latest"
-    containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
-
-    input:
-        val ser
-
-    output:
-        path 'lr_config.conf', emit: lhr_conf
-
-    script:
-        """
-        #!python3
-
-        from jinja2 import Environment, FileSystemLoader
-        from pathlib import Path
-
-        output = Path('${params.OUTPUT_LHR}')
-        j2_env = Environment(loader=FileSystemLoader('$baseDir/templates'), trim_blocks=True)
-        result = j2_env.get_template('lr_config.j2').render(output=output)
-        with open('lr_config.conf', 'w') as f:
-            print(result, file=f)
-        """
-}
 
 
 process run_lhr_components {
@@ -520,22 +456,21 @@ process run_lhr_islands {
         val mwcat
         val radcat
         val conf
-        val ser
 
     output:
-        val "${params.OUTPUT_LHR}/w1_LR_matches_islands.csv", emit: w1_lr_matches
+        val "${params.OUTPUT_LHR_ISLAND}/w1_LR_matches_islands.csv", emit: w1_lr_matches
 
     script:
         """
         #!/bin/bash
 
-        mkdir -p ${params.OUTPUT_LHR}/astropy
-        export XDG_CACHE_HOME=${params.OUTPUT_LHR}
-        export MPLCONFIGDIR=${params.OUTPUT_LHR}
+        mkdir -p ${params.OUTPUT_LHR_ISLAND}/astropy
+        export XDG_CACHE_HOME=${params.OUTPUT_LHR_ISLAND}
+        export MPLCONFIGDIR=${params.OUTPUT_LHR_ISLAND}
         export LHR_CPU=32
         python3 -u /scripts/lr_wrapper_emucat.py --mwcat ${mwcat} --radcat ${radcat} --config ${conf} > ${params.OUTPUT_LOG_DIR}/${params.ser}_lhr.log
-        cp ${params.OUTPUT_LHR}/w1_LR_matches.csv ${params.OUTPUT_LHR}/w1_LR_matches_islands.csv
-        cp ${params.OUTPUT_LHR}/w1_LR_matches.fits ${params.OUTPUT_LHR}/w1_LR_matches_islands.fits"       
+        cp ${params.OUTPUT_LHR_ISLAND}/w1_LR_matches.csv ${params.OUTPUT_LHR_ISLAND}/w1_LR_matches_islands.csv
+        cp ${params.OUTPUT_LHR_ISLAND}/w1_LR_matches.fits ${params.OUTPUT_LHR_ISLAND}/w1_LR_matches_islands.fits
         """
 }
 
@@ -767,7 +702,6 @@ process insert_properties_into_emucat {
 
     input:
         val ser
-        val ser2
 
     output:
         val ser, emit: ser_output
@@ -784,7 +718,7 @@ workflow emucat_ser {
         ser
 
     main:
-        setup(ser)
+        //setup(ser)
 
         // Download Image data
         get_sched_blocks(setup.out.ser_output)
@@ -805,15 +739,17 @@ workflow emucat_ser {
         match_nearest_neighbour_with_allwise(insert_selavy_components_into_emucat.out.ser_output)
         
         // LHR algorithm for components
-        generate_lhr_conf(match_nearest_neighbour_with_allwise.out.ser_output)
-        get_allwise_sources(run_linmos.out.image_out, ser)
+        generate_lhr_conf("${params.OUTPUT_LHR}", match_nearest_neighbour_with_allwise.out.ser_output)
+        get_lhr_allwise_sources("${params.OUTPUT_LHR}/${ser}_allwise.xml", run_linmos.out.image_out, ser)
         get_component_sources(insert_selavy_components_into_emucat.out.ser_output)
-        run_lhr_components(get_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
+        run_lhr_components(get_lhr_allwise_sources.out.allwise_cat, get_component_sources.out.component_cat, generate_lhr_conf.out.lhr_conf)
         insert_lhr_into_emucat(run_lhr_components.out.w1_lr_matches, ser)
 
         // LHR algorithm for islands
+        generate_lhr_island_conf("${params.OUTPUT_LHR_ISLAND}", match_nearest_neighbour_with_allwise.out.ser_output)
+        get_lhr_island_allwise_sources("${params.OUTPUT_LHR_ISLAND}/${ser}_allwise.xml", run_linmos.out.image_out, ser)
         get_island_sources(insert_selavy_islands_into_emucat.out.ser_output)
-        run_lhr_islands(get_allwise_sources.out.allwise_cat, get_island_sources.out.island_cat, generate_lhr_conf.out.lhr_conf, insert_lhr_into_emucat.out.ser_output)
+        run_lhr_islands(get_lhr_island_allwise_sources.out.allwise_cat, get_island_sources.out.island_cat, generate_lhr_island_conf.out.lhr_conf)
         insert_lhr_islands_into_emucat(run_lhr_islands.out.w1_lr_matches, ser)
 
         // Extended doubles algorithm
@@ -823,7 +759,7 @@ workflow emucat_ser {
         insert_extended_doubles_into_emucat(run_extended_doubles.out.ser_output, run_extended_doubles.out.source_cat)
 
         // Properties
-        insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output, insert_lhr_islands_into_emucat.out.ser_output)
+        insert_properties_into_emucat(insert_extended_doubles_into_emucat.out.ser_output)
 
         // Value add processes
         import_des_dr1_from_lhr(insert_lhr_into_emucat.out.ser_output)
