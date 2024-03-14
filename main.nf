@@ -167,7 +167,7 @@ process generate_linmos_conf {
 
 process run_linmos {
 
-    container = "csirocass/askapsoft:1.13.0-setonix-lustrempich"
+    container = "csirocass/askapsoft:1.16.0-mpich"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -255,9 +255,8 @@ process run_selavy {
         srun --export=ALL --mpi=pmi2 -n 36 \
                 singularity exec \
                 --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                ${params.IMAGES}/csirocass-askapsoft-1.13.0-setonix-lustrempich.img \
+                ${params.IMAGES}/csirocass-askapsoft-1.16.0-mpich.img \
                 selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
-
         """
 }
 
@@ -265,6 +264,9 @@ process remove_mosaic_from_emucat {
 
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
+
+    errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+    maxErrors 3
 
     input:
         path cat_input
