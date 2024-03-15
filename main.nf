@@ -252,7 +252,7 @@ process run_selavy {
         """
         #!/bin/bash
 
-        srun --export=ALL --mpi=pmi2 -n 36 \
+        srun --export=ALL --mpi=pmi2 -n 64 \
                 singularity exec \
                 --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
                 ${params.IMAGES}/csirocass-askapsoft-1.16.0-mpich.img \
@@ -280,6 +280,8 @@ process remove_mosaic_from_emucat {
 
     script:
         """
+        #!/bin/bash
+
         python3 /scripts/catalog.py delete_components -s ${ser} -c ${params.INPUT_CONF}/cred.ini
         """
 }
@@ -299,6 +301,8 @@ process insert_selavy_components_into_emucat {
 
     script:
         """
+        #!/bin/bash
+
         python3 /scripts/catalog.py import_selavy -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${cat_input.toRealPath()}
         """
 }
@@ -317,6 +321,8 @@ process insert_selavy_islands_into_emucat {
 
     script:
         """
+        #!/bin/bash
+
         python3 /scripts/catalog.py import_selavy_island -s ${ser} -c ${params.INPUT_CONF}/cred.ini -i ${island_input.toRealPath()}
         """
 }
@@ -335,6 +341,8 @@ process match_nearest_neighbour_with_allwise {
 
     script:
         """
+        #!/bin/bash
+
         python3 /scripts/catalog.py match_nearest_neighbour_with_allwise -s ${ser} -c ${params.INPUT_CONF}/cred.ini
         """
 }
@@ -510,6 +518,8 @@ process insert_lhr_islands_into_emucat {
 
     script:
         """
+        #!/bin/bash
+
         python3 /scripts/catalog.py import_lhr_islands -c ${params.INPUT_CONF}/cred.ini -i ${w1_lr_matches.toRealPath()}
         """
 }
@@ -531,6 +541,8 @@ process import_des_dr1_from_lhr {
 
     script:
         """
+        #!/bin/bash
+
         export HOME=${params.SCRATCH_ROOT}
         python3 -u /scripts/noao.py import_des_dr1_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_des_dr1.log
@@ -577,6 +589,8 @@ process import_vhs_from_lhr {
 
     script:
         """
+        #!/bin/bash
+
         export HOME=${params.SCRATCH_ROOT}
         python3 -u /scripts/noao.py import_vhs_from_lhr -s ${ser} -c ${params.INPUT_CONF}/cred.ini \
         -o ${params.OUTPUT_LHR} > ${params.OUTPUT_LOG_DIR}/${ser}_vhs_from_lhr.log
@@ -672,6 +686,8 @@ process run_extended_doubles {
 
     script:
         """
+        #!/bin/bash
+
         rm -f ${params.OUTPUT_EXTENDED_DOUBLES}/${ser}_double_components_pairs.xml && \
         python3 -u /scripts/emu_doubles.py --config ${ed_conf} ${comp_cat}
         """
@@ -692,6 +708,8 @@ process insert_extended_doubles_into_emucat {
         
     script:
         """
+        #!/bin/bash
+
         python3 -u /scripts/catalog.py import_extended_doubles -i ${source_cat} -c ${params.INPUT_CONF}/cred.ini
         """
 }
@@ -710,6 +728,8 @@ process insert_properties_into_emucat {
 
     script:
         """
+        #!/bin/bash
+
         python3 -u /scripts/properties.py import_properties -s ${ser} -c ${params.INPUT_CONF}/cred.ini
         """
 }
