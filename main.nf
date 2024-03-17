@@ -188,8 +188,7 @@ process run_linmos {
 }
 
 
-process generate_sel
-avy_conf {
+process generate_selavy_conf {
 
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
