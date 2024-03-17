@@ -188,7 +188,8 @@ process run_linmos {
 }
 
 
-process generate_selavy_conf {
+process generate_sel
+avy_conf {
 
     container = "aussrc/emucat_scripts:latest"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
@@ -252,7 +253,7 @@ process run_selavy {
         """
         #!/bin/bash
 
-        srun --export=ALL --mpi=pmi2 -n 64 \
+        srun --export=ALL --mpi=pmi2 -n 36 \
                 singularity exec \
                 --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
                 ${params.IMAGES}/csirocass-askapsoft-1.16.0-mpich.img \
