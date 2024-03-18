@@ -167,7 +167,7 @@ process generate_linmos_conf {
 
 process run_linmos {
 
-    container = "csirocass/askapsoft:1.16.0-mpich"
+    container = "csirocass/askapsoft:1.16.1-mpich"
     containerOptions = "--bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT}"
 
     input:
@@ -256,7 +256,7 @@ process run_selavy {
         srun --export=ALL --mpi=pmi2 -n 36 \
                 singularity exec \
                 --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
-                ${params.IMAGES}/csirocass-askapsoft-1.16.0-mpich.img \
+                ${params.IMAGES}/csirocass-askapsoft-1.16.1-mpich.img \
                 selavy -c ${selavy_conf.toRealPath()} -l ${selavy_log_conf.toRealPath()}
         """
 }
