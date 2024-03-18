@@ -252,7 +252,7 @@ process run_selavy {
         """
         #!/bin/bash
 
-        srun --export=ALL --mpi=pmi2 -n 36 \
+        srun --export=ALL --mpi=pmi2 -n 64 \
                 singularity exec \
                 --bind ${params.SCRATCH_ROOT}:${params.SCRATCH_ROOT} \
                 ${params.IMAGES}/csirocass-askapsoft-1.16.1-mpich.img \
